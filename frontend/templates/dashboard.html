@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard – ToolboxV8</title>
+  <meta name="description" content="ToolboxV8 — plateforme automatisée de tests d'intrusion. Reconnaissance, scan, exploitation, audit web, SIEM. Mastère Cybersécurité 2025/2026." />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2360a5fa' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i data-lucide="shield-check"></i></div>
+    <div>
+      <div class="brand-name">ToolboxV8</div>
+      <div class="brand-sub">v1.0.0</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Navigation</div>
+    <a href="/dashboard" class="nav-item active">
+      <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span> Dashboard
+    </a>
+    <a href="/modules" class="nav-item nav-not-reader">
+      <span class="nav-icon"><i data-lucide="wrench"></i></span> Modules
+    </a>
+    <a href="/reports" class="nav-item">
+      <span class="nav-icon"><i data-lucide="file-text"></i></span> Rapports
+    </a>
+
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Défensif</div>
+    <a href="/siem" class="nav-item nav-admin-only" style="display:none">
+      <span class="nav-icon"><i data-lucide="radar"></i></span> SIEM
+    </a>
+
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Administration</div>
+    <a href="/admin/users" class="nav-item nav-admin-only" style="display:none">
+      <span class="nav-icon"><i data-lucide="users"></i></span> Utilisateurs
+    </a>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div>
+        <div class="user-name" id="user-name">–</div>
+        <div class="user-role" id="user-role">–</div>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="logout()" title="Déconnexion"><i data-lucide="log-out"></i></button>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-title">Dashboard</h1>
+      <span class="breadcrumb">Vue d'ensemble</span>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot" id="api-status" title="Statut API"></div>
+      <span class="topbar-time" id="clock">–</span>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- KPI Cards -->
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-card--blue">
+        <div class="kpi-icon"><i data-lucide="search" class="icon-xl"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-value" id="kpi-total">–</div>
+          <div class="kpi-label">Scans totaux</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-card--green">
+        <div class="kpi-icon"><i data-lucide="check-circle-2" class="icon-xl"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-value" id="kpi-done">–</div>
+          <div class="kpi-label">Terminés</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-card--red">
+        <div class="kpi-icon"><i data-lucide="alert-triangle" class="icon-xl"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-value" id="kpi-error">–</div>
+          <div class="kpi-label">Erreurs</div>
+        </div>
+      </div>
+      <div class="kpi-card kpi-card--purple">
+        <div class="kpi-icon"><i data-lucide="clipboard-list" class="icon-xl"></i></div>
+        <div class="kpi-body">
+          <div class="kpi-value" id="kpi-reports">–</div>
+          <div class="kpi-label">Rapports</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+
+      <!-- Derniers jobs -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Derniers jobs</h2>
+          <a href="/modules" class="panel-action">+ Nouveau scan</a>
+        </div>
+        <table class="table" id="jobs-table">
+          <thead>
+            <tr><th>#</th><th>Module</th><th>Cible</th><th>Statut</th><th>Date</th></tr>
+          </thead>
+          <tbody id="jobs-body">
+            <tr><td colspan="5" class="table-empty">Chargement…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Derniers rapports -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2 class="panel-title">Derniers rapports</h2>
+          <a href="/reports" class="panel-action">Voir tout</a>
+        </div>
+        <div id="reports-list">
+          <div class="table-empty">Chargement…</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Accès rapide -->
+    <div class="panel" style="margin-top:24px">
+      <div class="panel-header">
+        <h2 class="panel-title">Lancement rapide</h2>
+      </div>
+      <div class="quick-launch">
+        <a href="/modules?m=passive_recon" class="ql-card">
+          <div class="ql-icon" style="background:rgba(20,184,166,.15);color:#2dd4bf"><i data-lucide="search" class="icon-lg"></i></div>
+          <div class="ql-name">Recon. passive</div>
+          <div class="ql-desc">Google Dorks · OSINT</div>
+        </a>
+        <a href="/modules?m=recon" class="ql-card">
+          <div class="ql-icon" style="background:rgba(59,130,246,.15);color:#60a5fa"><i data-lucide="radar" class="icon-lg"></i></div>
+          <div class="ql-name">Reconnaissance</div>
+          <div class="ql-desc">DNS · Nmap · WhatWeb</div>
+        </a>
+        <a href="/modules?m=scan" class="ql-card">
+          <div class="ql-icon" style="background:rgba(245,158,11,.15);color:#fbbf24"><i data-lucide="shield-alert" class="icon-lg"></i></div>
+          <div class="ql-name">Scan Vulnérabilités</div>
+          <div class="ql-desc">Nmap NSE · Nikto · SSLyze</div>
+        </a>
+        <a href="/modules?m=exploit" class="ql-card">
+          <div class="ql-icon" style="background:rgba(239,68,68,.15);color:#f87171"><i data-lucide="zap" class="icon-lg"></i></div>
+          <div class="ql-name">Exploitation</div>
+          <div class="ql-desc">SQLmap · Hydra · Metasploit</div>
+        </a>
+        <a href="/modules?m=web_scan" class="ql-card">
+          <div class="ql-icon" style="background:rgba(139,92,246,.15);color:#a78bfa"><i data-lucide="globe" class="icon-lg"></i></div>
+          <div class="ql-name">Web / API</div>
+          <div class="ql-desc">ZAP · Gobuster</div>
+        </a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="/static/js/app.js"></script>
+<script>
+  requireAuth();
+  loadUserInfo();
+  loadStats();
+  loadJobs();
+  loadReports();
+  startClock();
+  if (window.lucide) lucide.createIcons();
+
+  async function loadStats() {
+    const d = await apiFetch('/api/dashboard/stats');
+    if (!d) return;
+    document.getElementById('kpi-total').textContent   = d.total_jobs;
+    document.getElementById('kpi-done').textContent    = d.done_jobs;
+    document.getElementById('kpi-error').textContent   = d.error_jobs;
+    document.getElementById('kpi-reports').textContent = d.total_reports;
+  }
+
+  async function loadJobs() {
+    const jobs = await apiFetch('/api/modules/jobs');
+    const tbody = document.getElementById('jobs-body');
+    if (!jobs || jobs.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Aucun job pour le moment</td></tr>';
+      return;
+    }
+    tbody.innerHTML = jobs.slice(0, 8).map(j => `
+      <tr>
+        <td class="td-id">#${j.id}</td>
+        <td><span class="badge badge--module">${j.module}</span></td>
+        <td class="td-target">${j.target}</td>
+        <td><span class="status status--${j.status}">${j.status}</span></td>
+        <td class="td-date">${formatDate(j.created_at)}</td>
+      </tr>`).join('');
+  }
+
+  async function loadReports() {
+    const reports = await apiFetch('/api/reports/');
+    const el = document.getElementById('reports-list');
+    if (!reports || reports.length === 0) {
+      el.innerHTML = '<div class="table-empty">Aucun rapport généré</div>';
+      return;
+    }
+    el.innerHTML = reports.slice(0, 5).map(r => `
+      <div class="report-item">
+        <div class="report-info">
+          <div class="report-title">${r.title}</div>
+          <div class="report-meta">${r.format.toUpperCase()} · ${formatDate(r.created_at)}</div>
+        </div>
+        <a href="/reports" class="btn-dl"><i data-lucide="download"></i></a>
+      </div>`).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+</script>
+</body>
+</html>

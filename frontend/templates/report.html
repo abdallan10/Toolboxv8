@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>{{ title }}</title>
+<style>
+  :root {
+    --primary: #1f3b82;
+    --primary-strong: #16306b;
+    --text: #0b1b2b;
+    --muted: #5c6b7a;
+    --border: #d7dbe8;
+    --codir-bg: #fff7ed;
+    --codir-border: #fb923c;
+    --bg-soft: #f6f7fb;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Inter", Arial, sans-serif;
+    margin: 0;
+    padding: 2.5rem 3rem;
+    line-height: 1.6;
+    color: var(--text);
+    background: #fff;
+  }
+  header.cover {
+    border-bottom: 3px solid var(--primary);
+    margin-bottom: 2rem;
+    padding-bottom: 1.25rem;
+  }
+  .eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin: 0 0 0.4rem;
+  }
+  h1 {
+    color: var(--primary);
+    margin: 0 0 0.5rem;
+    font-size: 1.8rem;
+  }
+  h2 {
+    color: var(--primary);
+    border-left: 4px solid var(--primary);
+    padding-left: 12px;
+    margin: 2rem 0 1rem;
+    font-size: 1.25rem;
+  }
+  h3 { color: var(--primary-strong); margin: 1rem 0 .5rem; font-size: 1.05rem; }
+  h4 { color: var(--primary-strong); margin: .8rem 0 .3rem; font-size: .92rem; }
+  .meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.85rem;
+    margin-top: 1rem;
+  }
+  .meta div { background: var(--bg-soft); padding: 0.6rem 0.85rem; border-radius: 6px; border: 1px solid var(--border); font-size: .85rem; }
+  .meta strong { color: var(--primary); display: block; font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .legend { font-size: .82rem; color: var(--muted); margin: .5rem 0 0; }
+  section { margin-bottom: 2rem; page-break-inside: avoid; }
+  .codir {
+    background: var(--codir-bg);
+    border-left: 4px solid var(--codir-border);
+    padding: 1rem 1.25rem;
+    border-radius: 6px;
+  }
+  .codir h2 { color: #c2410c; border-left: none; padding-left: 0; margin-top: 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 0.6rem; font-size: .85rem; }
+  th, td { border: 1px solid var(--border); padding: 0.5rem 0.7rem; text-align: left; vertical-align: top; }
+  th { background: var(--primary); color: #fff; font-weight: 600; }
+  tbody tr:nth-child(even) { background: var(--bg-soft); }
+  .badge {
+    display: inline-block;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #fff;
+  }
+  .badge--critical { background: #991b1b; }
+  .badge--high     { background: #c12f39; }
+  .badge--medium   { background: #f4a259; }
+  .badge--low      { background: #16a34a; }
+  .badge--info     { background: #3554d1; }
+  /* Blocs de code : aligné sur le PDF (palette slate, texte sombre sur fond clair) */
+  pre {
+    background: #f8fafc;          /* slate-50 — même que CODE_BG dans le PDF */
+    color: #1e293b;               /* slate-800 — même que CODE_FG dans le PDF */
+    border: 1px solid #cbd5e1;    /* slate-300 — bordure subtile, comme PDF */
+    padding: 0.8rem 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: .78rem;
+    font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  code { font-family: "JetBrains Mono", "Fira Code", monospace; font-size: .82rem; }
+  article.finding {
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--primary);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    margin: 0.8rem 0;
+    background: #fff;
+  }
+  article.finding p { margin: 0.4rem 0; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .stat-card {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 1.6rem; font-weight: 700; color: var(--primary); display: block; }
+  .stat-card .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.78rem;
+    text-align: center;
+  }
+  .recos li { margin-bottom: 0.4rem; }
+  .finding p.err { color:#991b1b; margin:.3rem 0; padding:.4rem .7rem; background:#fef2f2; border-left:3px solid #991b1b; border-radius:4px; font-size:.86rem; }
+  .finding p.cmd { margin:.4rem 0; font-size:.85rem; }
+  .finding p.cmd code { background:#f1f5f9; padding:.15rem .4rem; border-radius:3px; border:1px solid #e2e8f0; }
+  .finding ul.creds { margin:.4rem 0 .6rem 1.2rem; font-size:.84rem; }
+  .finding ul.creds li code { background:#ecfdf5; padding:.1rem .35rem; border-radius:3px; border:1px solid #a7f3d0; color:#047857; }
+  .subh { color:var(--muted); font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; margin:.6rem 0 .25rem; font-weight:600; }
+</style>
+</head>
+<body>
+
+<header class="cover">
+  <p class="eyebrow">ToolboxV8 • Rapport automatisé</p>
+  <h1>{{ title }}</h1>
+  <p style="margin:.3rem 0;color:var(--muted)">Audit de sécurité offensif – résultats détaillés et recommandations.</p>
+  <div class="meta">
+    <div><strong>Cible</strong>{{ job.target }}</div>
+    <div><strong>Module</strong>{{ job.module|upper }}</div>
+    <div><strong>Statut</strong>{{ job.status }}</div>
+    <div><strong>Généré le</strong>{{ generated_at }}</div>
+    {% if job.id %}<div><strong>Job ID</strong>#{{ job.id }}</div>{% endif %}
+  </div>
+  <p class="legend"><strong>Légende criticité :</strong> Info • Low • Medium • High • Critical (selon CVSS et impact métier).</p>
+</header>
+
+<section class="codir">
+  <h2>Synthèse exécutive (CODIR)</h2>
+  <p>
+    Ce rapport présente les résultats du module <strong>{{ job.module }}</strong>
+    exécuté sur la cible <strong>{{ job.target }}</strong>. Les sections ci-dessous
+    détaillent les outils utilisés, les données collectées, et les recommandations
+    de remédiation. Les actions urgentes sont listées en fin de rapport.
+  </p>
+</section>
+
+<section>
+  <h2>Statistiques</h2>
+  <div class="stats">
+    <div class="stat-card"><span class="num">{{ tools_sections|length }}</span><span class="lbl">Outils utilisés</span></div>
+    <div class="stat-card"><span class="num">{{ job.module|upper }}</span><span class="lbl">Module</span></div>
+    <div class="stat-card"><span class="num">{{ job.status }}</span><span class="lbl">Statut final</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Déroulé technique &amp; preuves</h2>
+  {% if tools_sections %}
+    {% for t in tools_sections %}
+      <article class="finding">
+        <h3>{{ t.name|upper }} <span class="badge badge--info">Outil</span></h3>
+
+        {% if t.error %}
+          <p class="err"><strong>Erreur :</strong> {{ t.error }}</p>
+        {% endif %}
+
+        {% if t.command %}
+          <p class="cmd"><strong>Commande :</strong> <code>{{ t.command }}</code></p>
+        {% endif %}
+
+        {% if t.main_output %}
+          <div class="subh">Sortie console</div>
+          <pre><code>{{ t.main_output }}</code></pre>
+        {% endif %}
+
+        {% if t.results_list %}
+          <div class="subh">Résultats ({{ t.results_list|length }})</div>
+          <ul class="creds">
+            {% for line in t.results_list %}<li><code>{{ line }}</code></li>{% endfor %}
+          </ul>
+        {% endif %}
+
+        {% if t.stderr %}
+          <div class="subh">Erreurs / stderr</div>
+          <pre><code>{{ t.stderr }}</code></pre>
+        {% endif %}
+
+        {% if t.extras_json %}
+          <div class="subh">Détails complémentaires</div>
+          <pre><code>{{ t.extras_json }}</code></pre>
+        {% endif %}
+
+        {% if not (t.error or t.command or t.main_output or t.results_list or t.stderr or t.extras_json) %}
+          <p style="color:var(--muted);font-size:.82rem"><em>Aucune donnée retournée par cet outil.</em></p>
+        {% endif %}
+      </article>
+    {% endfor %}
+  {% else %}
+    <p><em>Aucune donnée collectée.</em></p>
+  {% endif %}
+</section>
+
+<section>
+  <h2>Tableau synthétique</h2>
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Outil</th><th>Type</th><th>Statut</th></tr>
+    </thead>
+    <tbody>
+      {% if tools_sections %}
+        {% for t in tools_sections %}
+        <tr>
+          <td>R-{{ "%03d"|format(loop.index) }}</td>
+          <td><code>{{ t.name }}</code></td>
+          <td>{{ job.module }}</td>
+          <td>
+            {% if t.error or (t.stderr and not t.main_output and not t.results_list) %}
+              <span class="badge badge--high">Erreur</span>
+            {% else %}
+              <span class="badge badge--info">Collecté</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr><td colspan="4"><em>Aucune donnée disponible.</em></td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Recommandations</h2>
+  <ul class="recos">
+    <li><strong>Correctifs :</strong> appliquer les patches de sécurité pour les vulnérabilités identifiées (CVE).</li>
+    <li><strong>Composants tiers :</strong> mettre à jour les dépendances et bibliothèques signalées.</li>
+    <li><strong>Configuration :</strong> renforcer TLS, en-têtes HTTP, désactiver les services obsolètes (Telnet, SMBv1).</li>
+    <li><strong>Surface d'attaque :</strong> restreindre les ports exposés publiquement et appliquer le principe du moindre privilège.</li>
+    <li><strong>Validation :</strong> planifier un nouveau test après remédiation pour confirmer les corrections.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Annexes</h2>
+  <p style="color:var(--muted);font-size:.82rem">
+    Les données brutes des outils sont incluses dans la section "Déroulé technique &amp; preuves" ci-dessus.
+    Les logs d'exécution complets sont disponibles dans l'interface ToolboxV8 via le bouton « Voir » du job correspondant.
+  </p>
+</section>
+
+<div class="footer">
+  ToolboxV8 – Mastère Cybersécurité – Rapport généré automatiquement le {{ generated_at }}
+</div>
+
+</body>
+</html>

@@ -1,0 +1,75 @@
+# ============================================================
+# Pipeline GitLab CI/CD pour ToolboxV8
+#
+# Stages : lint → test → build
+# Lance automatiquement sur push et merge requests.
+# ============================================================
+
+stages:
+  - lint
+  - test
+  - build
+
+variables:
+  PYTHON_VERSION: "3.11"
+  POETRY_VERSION: "1.8.2"
+  POSTGRES_USER: pentest
+  POSTGRES_PASSWORD: pentest
+  POSTGRES_DB: pentestdb
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - backend/.venv
+
+# ── Lint Python (ruff) ───────────────────────────────────────
+lint:ruff:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install --quiet ruff==0.6.9
+  script:
+    - cd backend && ruff check . --output-format=concise
+  allow_failure: true   # warnings de style ne cassent pas la build
+
+# ── Tests pytest avec PostgreSQL + Redis ─────────────────────
+test:pytest:
+  stage: test
+  image: python:3.11-slim
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+  variables:
+    DATABASE_URL: "postgresql://pentest:pentest@postgres:5432/pentestdb"
+    REDIS_URL: "redis://redis:6379/0"
+    CELERY_BROKER_URL: "redis://redis:6379/0"
+    CELERY_RESULT_BACKEND: "redis://redis:6379/1"
+    SECRET_KEY: "ci-test-secret-key-not-used-in-prod"
+    FERNET_KEY: "M0F5T3JuZXRLZXlGb3JDSVRlc3RPbmx5MzJiPT0="
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq gcc libpq-dev curl
+    - pip install --quiet "poetry==$POETRY_VERSION"
+    - cd backend && poetry install --no-root --no-interaction
+  script:
+    - cd backend && poetry run pytest -v
+  allow_failure: true
+
+# ── Build images Docker ──────────────────────────────────────
+build:docker:
+  stage: build
+  image: docker:25
+  services:
+    - docker:25-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+  script:
+    - docker build -f docker/Dockerfile         -t toolboxv8-api:$CI_COMMIT_SHORT_SHA .
+    - docker build -f docker/Dockerfile.celery  -t toolboxv8-worker:$CI_COMMIT_SHORT_SHA .
+  only:
+    - main
+    - master
+    - merge_requests

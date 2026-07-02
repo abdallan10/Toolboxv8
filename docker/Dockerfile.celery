@@ -1,0 +1,60 @@
+# ─── Stage 1 : export des dépendances Python via poetry ───────────────────
+# On utilise une base python-slim stable pour éviter les frictions PEP 668
+# de Kali pendant la résolution poetry.
+FROM python:3.11-slim-bookworm AS builder
+
+ENV POETRY_VERSION=1.8.2 \
+    POETRY_NO_INTERACTION=1
+
+RUN pip install --no-cache-dir "poetry==$POETRY_VERSION" "poetry-plugin-export>=1.8.0"
+
+WORKDIR /build
+COPY backend/pyproject.toml backend/poetry.lock* ./
+RUN poetry export -f requirements.txt --without-hashes --only main -o /requirements.txt
+
+
+# ─── Stage 2 : runtime Kali avec les outils offensifs ─────────────────────
+FROM kalilinux/kali-rolling
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    PATH="/opt/venv/bin:$PATH"
+
+WORKDIR /app
+
+# Outils offensifs (repos Kali) + dépendances runtime Python/WeasyPrint
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      # Pentest
+      nmap nikto sqlmap hydra john wordlists \
+      whatweb gobuster dirb dirbuster \
+      whois dnsutils curl \
+      metasploit-framework \
+      # Build / runtime Python
+      gcc libpq-dev git ca-certificates \
+      python3 python3-pip python3-venv python3-dev \
+      # WeasyPrint (rendu PDF dans report_tasks)
+      libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz0b libcairo2 \
+      libgdk-pixbuf-2.0-0 fonts-dejavu-core shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+
+# Décompresser rockyou.txt (utilisé par john / hydra)
+RUN if [ -f /usr/share/wordlists/rockyou.txt.gz ]; then \
+      gunzip -k /usr/share/wordlists/rockyou.txt.gz; \
+    fi
+
+# Venv dédié (contourne PEP 668 de Kali rolling)
+RUN python3 -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir --upgrade pip
+
+ENV PIP_DEFAULT_TIMEOUT=120 \
+    PIP_RETRIES=10
+
+# Dépendances Python via le requirements.txt exporté par poetry
+COPY --from=builder /requirements.txt /tmp/requirements.txt
+RUN /opt/venv/bin/pip install --no-cache-dir --retries 10 --timeout 120 -r /tmp/requirements.txt
+
+COPY backend/ .
+COPY frontend/ ./frontend/
+
+CMD ["celery", "-A", "app.tasks.celery_app", "worker", "--loglevel=info", "--concurrency=4"]

@@ -1,0 +1,224 @@
+# ============================================================
+# ToolboxV8 – stack complète Docker Compose
+#
+# Services applicatifs : api (FastAPI REST), web (FastAPI HTML), worker (Celery + Kali)
+# Infra : postgres, redis, minio, elasticsearch, logstash, kibana, snort
+#
+# Démarrage : ./scripts/start.sh   (Linux/macOS)
+#             .\scripts\start.ps1  (Windows)
+# Le compte admin (admin / admin) est créé automatiquement par les scripts.
+# ============================================================
+
+services:
+
+  # ── API FastAPI (pure API, /api/*) ────────────────────────────
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: pentest_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file: ../.env
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ../frontend:/app/frontend:ro
+      - reports_data:/tmp/reports
+      - wordlists_data:/tmp/wordlists
+    networks:
+      - pentest_net
+
+  # ── Web (pages HTML + proxy /api/*) ───────────────────────────
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: pentest_web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file: ../.env
+    environment:
+      INTERNAL_API_URL: http://api:8000
+    command: ["uvicorn", "app.web_main:app", "--host", "0.0.0.0", "--port", "3000"]
+    depends_on:
+      - api
+    volumes:
+      - ../frontend:/app/frontend:ro
+    networks:
+      - pentest_net
+
+  # ── Caddy : reverse proxy HTTPS (cert auto-signé via CA interne) ──
+  caddy:
+    image: caddy:2-alpine
+    container_name: pentest_caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+    networks:
+      - pentest_net
+
+  # ── Celery Worker ─────────────────────────────────────────────
+  worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.celery
+    container_name: pentest_worker
+    restart: unless-stopped
+    env_file: ../.env
+    depends_on:
+      - redis
+      - db
+    volumes:
+      - reports_data:/tmp/reports
+      - wordlists_data:/tmp/wordlists
+    networks:
+      - pentest_net
+
+  # ── OWASP ZAP (démon API pour module web_scan) ─────────────────
+  # API exposée sur :8080 avec clé "zapsecret".
+  # Démarrage ~30s (chargement plugins ZAP).
+  zap:
+    image: zaproxy/zap-stable
+    container_name: pentest_zap
+    restart: unless-stopped
+    command: >
+      zap.sh -daemon -host 0.0.0.0 -port 8080
+      -config api.key=zapsecret
+      -config api.addrs.addr.name=.*
+      -config api.addrs.addr.regex=true
+    networks:
+      - pentest_net
+
+  # ── Cible vulnérable (démos Hydra, John, etc.) ─────────────────
+  # SSH root:toor — volontairement faible pour démontrer le brute-force.
+  # Isolé sur le réseau Docker, jamais exposé sur le LAN.
+  target:
+    image: linuxserver/openssh-server:latest
+    container_name: pentest_target
+    restart: unless-stopped
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: "Europe/Paris"
+      PASSWORD_ACCESS: "true"
+      USER_NAME: "pentest_user"
+      USER_PASSWORD: "toor"
+      SUDO_ACCESS: "true"
+    networks:
+      - pentest_net
+
+  # ── PostgreSQL ────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    container_name: pentest_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER:     pentest
+      POSTGRES_PASSWORD: pentest
+      POSTGRES_DB:       pentestdb
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pentest"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pentest_net
+
+  # ── Redis ──────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: pentest_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - pentest_net
+
+  # ── MinIO ──────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: pentest_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER:     minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    networks:
+      - pentest_net
+
+  # ── Elasticsearch ─────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: pentest_elasticsearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - pentest_net
+
+  # ── Logstash ──────────────────────────────────────────────────
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.13.0
+    container_name: pentest_logstash
+    restart: unless-stopped
+    volumes:
+      - ../siem/elk/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - pentest_net
+
+  # ── Kibana ────────────────────────────────────────────────────
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.13.0
+    container_name: pentest_kibana
+    restart: unless-stopped
+    ports:
+      - "5601:5601"
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    networks:
+      - pentest_net
+
+volumes:
+  pg_data:
+  redis_data:
+  minio_data:
+  es_data:
+  reports_data:
+  wordlists_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  pentest_net:
+    driver: bridge

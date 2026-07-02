@@ -1,0 +1,73 @@
+# ============================================================
+# .gitignore – PentestBox
+# ============================================================
+
+# ---- Secrets et configuration sensible ----
+.env
+*.key
+*.pem
+*.crt
+*.p12
+cookies.txt
+docker/caddy/caddy-root-ca.crt
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ---- Virtual environments ----
+.venv/
+venv/
+env/
+ENV/
+.poetry/
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ---- Docker ----
+docker/volumes/
+
+# ---- Rapports générés (locaux) ----
+/tmp/reports/
+*.pdf
+*.html.bak
+# Exception : les rapports finaux pédagogiques (rendus officiels) sont commités
+!docs/PE-2526_*.pdf
+# Exception : PDFs officiels du sujet école (cadre + cahier des charges)
+!Sujet/*.pdf
+
+# ---- Logs ----
+*.log
+logs/
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- MinIO local data ----
+minio_data/
+
+# ---- Node (si utilisé) ----
+node_modules/
+
+# ---- État local Claude Code (assistant IA, spécifique à chaque dev) ----
+.claude/scheduled_tasks.lock
+.claude/settings.local.json

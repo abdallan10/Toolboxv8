@@ -1,0 +1,297 @@
+================================================================
+ ToolboxV8 — Guide de test des outils
+================================================================
+ Toutes les configs ci-dessous ont ete validees pendant la session
+ du 05/06/2026 et produisent des rapports PDF exploitables.
+ Mastere Cybersecurite 2025/2026.
+================================================================
+
+
+================================================================
+ COMPTES PAR DEFAUT (RBAC, seedes automatiquement au demarrage)
+================================================================
+
+ admin   / admin123    (role admin   - tout faire, gestion utilisateurs)
+ analyst / analyst123  (role analyst - lancer scans, voir rapports)
+ reader  / reader123   (role reader  - lecture seule)
+
+ Page /admin/users (admin uniquement) pour creer / modifier / desactiver
+ / supprimer des utilisateurs depuis l'interface web.
+
+
+================================================================
+ MODULE 1 — RECONNAISSANCE PASSIVE (OSINT)
+================================================================
+
+Outil unique : Google Dorks (3 categories, 24 templates)
+Moteurs supportes : Google, Bing, DuckDuckGo
+
+----------------------------------------------------------------
+ Scan 1 — Recherche par mot-cle libre
+----------------------------------------------------------------
+  Cible           : etudiant       (ou n'importe quel mot/marque)
+  Moteur          : Google
+  Dorks predefinis :
+    Categorie "Mot-cle"        : tout cocher
+    Categorie "Reseaux sociaux" : tout cocher
+    Categorie "Domaine"        : tout decocher
+
+  Resultat : ouverture multi-onglets des recherches Google generees
+
+
+----------------------------------------------------------------
+ Scan 2 — Recherche sur un domaine
+----------------------------------------------------------------
+  Cible           : example.com
+  Moteur          : Google
+  Dorks predefinis :
+    Categorie "Domaine"        : tout cocher
+    Autres                     : decocher
+
+  Resultat : site:example.com + admin + emails + sous-domaines
+
+
+================================================================
+ MODULE 2 — RECONNAISSANCE ACTIVE
+================================================================
+
+Outils : Nmap, DNS, whois, WhatWeb
+
+----------------------------------------------------------------
+ Scan 1 — Reconnaissance basique
+----------------------------------------------------------------
+  Cible           : scanme.nmap.org
+  Profil Nmap     : Quick
+  Activer Whois   : OUI
+  Activer WhatWeb : OUI
+
+  Resultat : IP resolue, ports ouverts (22, 80), WHOIS du domaine,
+             fingerprint web Apache
+
+
+----------------------------------------------------------------
+ Scan 2 — Reconnaissance avancee
+----------------------------------------------------------------
+  Cible           : scanme.nmap.org
+  Profil Nmap     : Full TCP (long ~10 min)
+  Activer Whois   : OUI
+  Activer WhatWeb : OUI
+
+  Resultat : scan complet 65535 ports + services + versions
+
+
+================================================================
+ MODULE 3 — SCAN DE VULNERABILITES
+================================================================
+
+Outils : Nmap NSE, Nikto, SSLyze
+ATTENTION : ne pas activer SSLyze sur un site sans HTTPS !
+
+----------------------------------------------------------------
+ Scan 1 — Nmap NSE + Nikto (cible HTTP)
+----------------------------------------------------------------
+  Cible           : scanme.nmap.org
+  Port            : 80
+  Nmap NSE        : ACTIVE,   profil Quick
+  Nikto           : ACTIVE,   profil Quick
+  SSLyze          : DESACTIVE (pas de HTTPS sur scanme)
+
+  Resultat : ports + scripts vuln Nmap, fingerprint Apache 2.4.7,
+             9 findings Nikto (headers manquants, etc.)
+
+
+----------------------------------------------------------------
+ Scan 2 — SSLyze uniquement (cible HTTPS)
+----------------------------------------------------------------
+  Cible           : badssl.com
+  Port            : 443
+  Nmap NSE        : DESACTIVE
+  Nikto           : DESACTIVE
+  SSLyze          : ACTIVE, profil Standard
+
+  Resultat : audit TLS complet, certificat, cipher suites,
+             toutes versions TLS testees
+
+
+================================================================
+ MODULE 4 — EXPLOITATION
+================================================================
+
+Outils : SQLmap, Hydra, John the Ripper, Metasploit
+NOTE   : Metasploit non operationnel (cf. limites rapport §10.2)
+
+----------------------------------------------------------------
+ Scan 1 — SQLmap Quick (detection rapide)
+----------------------------------------------------------------
+  Cible           : http://testasp.vulnweb.com/showforum.asp?id=0
+  Outil           : SQLmap — Injection SQL
+  Profil          : Quick
+
+  Resultat : 2 a 3 types d'injection detectes selon la session
+             (boolean-based, time-based heavy query, stacked queries
+             si disponible), MSSQL 2014 + IIS 8.5 identifies
+  Temps     : 5-15 min (testasp.vulnweb.com peut etre lent)
+
+
+----------------------------------------------------------------
+ Scan 2 — SQLmap Dump (extraction donnees, cible)
+----------------------------------------------------------------
+  Cible           : http://testasp.vulnweb.com/showforum.asp?id=0
+  Outil           : SQLmap
+  Profil          : Dump
+
+  Resultat : enumeration de 7 bases de donnees (acufo, acuse, ...)
+             + tentatives sur tables users/admin/credentials/etc.
+  Temps     : ~5-10 min
+
+
+----------------------------------------------------------------
+ Scan 3 — Hydra (brute-force SSH local)
+----------------------------------------------------------------
+  Cible           : target              (conteneur Docker integre)
+  Outil           : Hydra — Brute-force credentials
+  Service         : ssh
+  Port            : 2222
+  Threads         : 4
+  Utilisateurs    : Liste manuelle, contenu :
+                      pentest_user
+  Mots de passe   : Liste manuelle, contenu :
+                      admin
+                      root
+                      toor
+                      password
+                      azerty
+
+  Resultat : "pentest_user:toor" cracke en 1 seconde
+  Temps     : ~2 sec
+
+
+----------------------------------------------------------------
+ Scan 4 — John the Ripper (cassage hash MD5)
+----------------------------------------------------------------
+  Cible           : 21232f297a57a5a743894a0e4a801fc3
+                    (hash MD5 de "admin")
+  Outil           : John the Ripper
+  Format          : raw-md5
+  Wordlist        : Liste manuelle, contenu :
+                      admin
+                      root
+                      password
+                      123456
+
+  Resultat : "admin" cracke en 0 seconde
+  Temps     : instantane
+
+
+----------------------------------------------------------------
+ Scan 5 (optionnel) — John SHA512crypt (style /etc/shadow)
+----------------------------------------------------------------
+  Cible           : $6$demosalt$NOR/jqxXnSCLQiN8sgL4inBkZY6PiyX1x2CMQitUyvdxmWsqHBYZGyLRgjcPm2NkzA6dPMtQiXYOOQ0UpNNm1/
+  Outil           : John the Ripper
+  Format          : sha512crypt
+  Wordlist        : Liste manuelle, contenu :
+                      admin
+                      root
+                      azerty
+                      password
+                      123456
+
+  Resultat : "azerty" cracke en quelques secondes
+  Temps     : ~2-5 sec
+
+
+================================================================
+ MODULE 5 — WEB / API
+================================================================
+
+Outils : OWASP ZAP (Spider + Active), Gobuster, Dependency-Check
+NOTE   : ZAP daemon integre au compose, accessible via http://zap:8080
+
+----------------------------------------------------------------
+ Scan 1 — Gobuster (decouverte de chemins)
+----------------------------------------------------------------
+  Cible           : http://testasp.vulnweb.com
+  Type ZAP        : peu importe (sera ignore si ZAP decoche)
+  Activer ZAP     : DESACTIVE
+  Activer Gobuster : ACTIVE
+  Profil Gobuster : Quick
+  Extensions      : (laisser vide)
+
+  Resultat : ~13 chemins caches trouves (/_vti_pvt, /cgi-bin,
+             /templates/, /aspnet_client, /robots.txt, ...)
+  Temps     : ~30 sec
+
+
+----------------------------------------------------------------
+ Scan 2 — ZAP Spider (crawl passif)
+----------------------------------------------------------------
+  Cible           : http://testasp.vulnweb.com
+  Type ZAP        : Spider — Crawl passif
+  Profil Spider   : Quick
+  URL proxy ZAP   : (laisser vide -> http://zap:8080)
+  Activer Gobuster : DESACTIVE
+
+  Resultat : URLs decouvertes par crawl, scan_id retourne
+  Temps     : ~30 sec - 1 min
+
+
+----------------------------------------------------------------
+ Scan 3 — ZAP Active (vraies attaques XSS/SQLi)
+----------------------------------------------------------------
+  Cible           : http://testasp.vulnweb.com
+  Type ZAP        : Active — Scan offensif
+  Profil Active   : Quick
+  URL proxy ZAP   : (laisser vide -> http://zap:8080)
+  Activer Gobuster : DESACTIVE
+
+  Resultat : 105 alertes trouvees, 14 types uniques
+             (CSP missing, Anti-clickjacking missing, CSRF tokens,
+              X-Powered-By leak, etc.)
+  Temps     : ~1 min (avec polling automatique jusqu'a 100%)
+
+
+================================================================
+ STRATEGIE POUR LA SOUTENANCE
+================================================================
+
+Demos courtes (< 2 min chacune) recommandees pour le live :
+
+  1. Hydra sur target              -> crack en 1s (impressionnant)
+  2. John MD5                      -> crack en 0s (instantane)
+  3. SQLmap Quick sur testasp      -> detection SQLi
+  4. ZAP Active Quick sur testasp  -> 100+ alertes en 1 min
+  5. Gobuster sur testasp          -> chemins caches en 30s
+
+Demos longues (a lancer en background pendant l'expose) :
+
+  - SQLmap Dump                    -> 5-10 min
+  - Nmap Full TCP                  -> 10 min
+  - ZAP Active OWASP               -> 5-10 min
+
+
+================================================================
+ RAPPEL — CIBLES AUTORISEES
+================================================================
+
+LEGALES (autorisation explicite des proprietaires) :
+  - scanme.nmap.org      (Nmap project, scans encourages)
+  - testasp.vulnweb.com  (Acunetix, ASP/MSSQL volontairement vuln)
+  - testphp.vulnweb.com  (Acunetix, PHP/MySQL — peut etre down)
+  - badssl.com           (Google, defauts TLS varies)
+  - demo.testfire.net    (IBM AppScan, app bancaire vuln)
+  - target               (conteneur local pentest_target SSH)
+  - zap                  (daemon ZAP local pour module web_scan)
+
+INTERDITES sans autorisation ecrite :
+  - Sites web aleatoires sur Internet
+  - Reseaux d'entreprise/ecole
+  - GitHub.com, Google.com, etc. (juste pour SSLyze toleree)
+  - WiFi de cafes/hotels
+
+En France : art. 323-1 et 323-2 du Code penal, jusqu'a 5 ans
+de prison + 150 000 EUR d'amende pour intrusion non autorisee.
+
+
+================================================================
+ Fin du guide — Bonne demo !
+================================================================

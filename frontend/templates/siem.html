@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIEM – ToolboxV8</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i data-lucide="shield-check"></i></div>
+    <div><div class="brand-name">ToolboxV8</div><div class="brand-sub">v1.0.0</div></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Navigation</div>
+    <a href="/dashboard" class="nav-item"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span> Dashboard</a>
+    <a href="/modules" class="nav-item nav-not-reader"><span class="nav-icon"><i data-lucide="wrench"></i></span> Modules</a>
+    <a href="/reports" class="nav-item"><span class="nav-icon"><i data-lucide="file-text"></i></span> Rapports</a>
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Défensif</div>
+    <a href="/siem" class="nav-item nav-admin-only active" style="display:none"><span class="nav-icon"><i data-lucide="radar"></i></span> SIEM</a>
+
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Administration</div>
+    <a href="/admin/users" class="nav-item nav-admin-only" style="display:none">
+      <span class="nav-icon"><i data-lucide="users"></i></span> Utilisateurs
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div class="user-name" id="user-name">–</div><div class="user-role" id="user-role">–</div></div>
+    </div>
+    <button class="btn-logout" onclick="logout()" title="Déconnexion"><i data-lucide="log-out"></i></button>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-title">SIEM Dashboard</h1>
+      <span class="breadcrumb">Surveillance · Métriques · État système</span>
+    </div>
+    <div class="topbar-right">
+      <span id="alert-badge" class="alert-badge">CHARGEMENT…</span>
+      <span class="topbar-time" id="last-refresh">–</span>
+      <button class="panel-action" onclick="refreshAll()"><i data-lucide="refresh-cw"></i> Actualiser</button>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ── HERO : santé globale ─────────────────────────── -->
+    <div class="siem-hero" id="siem-hero">
+      <div class="hero-status">
+        <div class="hero-pulse" id="hero-pulse">
+          <i data-lucide="shield-check" class="icon-xl"></i>
+        </div>
+        <div class="hero-status-info">
+          <div class="hero-label">État du système</div>
+          <div class="hero-title" id="hero-title">Chargement…</div>
+          <div class="hero-sub" id="hero-sub">Surveillance en cours…</div>
+        </div>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-icon"><i data-lucide="server"></i></div>
+          <div>
+            <div class="hero-stat-val" id="hero-services">–</div>
+            <div class="hero-stat-lbl">Services actifs</div>
+          </div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-icon"><i data-lucide="activity"></i></div>
+          <div>
+            <div class="hero-stat-val" id="hero-24h">–</div>
+            <div class="hero-stat-lbl">Évènements 24h</div>
+          </div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-icon"><i data-lucide="clock"></i></div>
+          <div>
+            <div class="hero-stat-val" id="hero-refresh">–</div>
+            <div class="hero-stat-lbl">Dernière mise à jour</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section : Métriques clés ──────────────────────── -->
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">Indicateurs clés</div>
+        <h2 class="section-title">Métriques de sécurité</h2>
+      </div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="metric-card metric--blue">
+        <div class="metric-top">
+          <div class="metric-icon"><i data-lucide="search"></i></div>
+          <div class="metric-trend"><i data-lucide="trending-up" class="icon-sm"></i></div>
+        </div>
+        <div class="metric-val" id="m-total">–</div>
+        <div class="metric-lbl">Scans totaux</div>
+        <div class="metric-foot">Tous les jobs lancés</div>
+      </div>
+
+      <div class="metric-card metric--green">
+        <div class="metric-top">
+          <div class="metric-icon"><i data-lucide="check-circle-2"></i></div>
+          <div class="metric-trend"><span id="m-rate-mini">–%</span></div>
+        </div>
+        <div class="metric-val" id="m-done">–</div>
+        <div class="metric-lbl">Scans réussis</div>
+        <div class="metric-foot">Taux de succès global</div>
+      </div>
+
+      <div class="metric-card metric--orange">
+        <div class="metric-top">
+          <div class="metric-icon"><i data-lucide="loader"></i></div>
+          <div class="metric-trend"><i data-lucide="zap" class="icon-sm"></i></div>
+        </div>
+        <div class="metric-val" id="m-running">–</div>
+        <div class="metric-lbl">Jobs actifs</div>
+        <div class="metric-foot">En cours d'exécution</div>
+      </div>
+
+      <div class="metric-card metric--red">
+        <div class="metric-top">
+          <div class="metric-icon"><i data-lucide="alert-triangle"></i></div>
+          <div class="metric-trend"><i data-lucide="shield-alert" class="icon-sm"></i></div>
+        </div>
+        <div class="metric-val" id="m-error">–</div>
+        <div class="metric-lbl">Erreurs détectées</div>
+        <div class="metric-foot">Anomalies à investiguer</div>
+      </div>
+    </div>
+
+    <!-- ── Section : Analyse temporelle ──────────────────── -->
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">Analyse</div>
+        <h2 class="section-title">Activité dans le temps</h2>
+      </div>
+      <span class="section-meta" id="timeline-total">–</span>
+    </div>
+
+    <div class="panel siem-panel" style="margin-bottom:24px">
+      <div class="chart-wrap" style="height:280px;padding:20px">
+        <canvas id="chart-timeline"></canvas>
+      </div>
+    </div>
+
+    <!-- ── Section : Distributions ───────────────────────── -->
+    <div class="section-header">
+      <div>
+        <div class="section-eyebrow">Répartition</div>
+        <h2 class="section-title">Distribution des scans</h2>
+      </div>
+    </div>
+
+    <div class="dist-grid">
+      <div class="panel siem-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i data-lucide="puzzle"></i> Modules utilisés</h2>
+        </div>
+        <div class="chart-wrap" style="height:240px">
+          <canvas id="chart-modules"></canvas>
+        </div>
+      </div>
+
+      <div class="panel siem-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i data-lucide="pie-chart"></i> Statuts des jobs</h2>
+        </div>
+        <div class="chart-wrap" style="height:240px">
+          <canvas id="chart-status"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Section : Infrastructure ──────────────────────── -->
+    <div class="section-header" style="margin-top:32px">
+      <div>
+        <div class="section-eyebrow">Infrastructure</div>
+        <h2 class="section-title">État des services</h2>
+      </div>
+      <span class="section-meta" id="services-summary">–</span>
+    </div>
+
+    <div class="services-grid" id="services-grid"></div>
+
+    <!-- ── Section : Activité ────────────────────────────── -->
+    <div class="section-header" style="margin-top:32px">
+      <div>
+        <div class="section-eyebrow">Surveillance</div>
+        <h2 class="section-title">Activité récente</h2>
+      </div>
+    </div>
+
+    <div class="activity-grid">
+      <div class="panel siem-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i data-lucide="bell"></i> Derniers évènements</h2>
+          <a href="/modules" class="panel-action">Tout voir</a>
+        </div>
+        <div id="activity-feed" class="activity-feed">
+          <div class="table-empty">Chargement…</div>
+        </div>
+      </div>
+
+      <div class="panel siem-panel">
+        <div class="panel-header">
+          <h2 class="panel-title"><i data-lucide="crosshair"></i> Top cibles</h2>
+        </div>
+        <div id="top-targets">
+          <div class="table-empty">Chargement…</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script src="/static/js/app.js"></script>
+<script>
+requireAuth();
+loadUserInfo();
+
+let chartTimeline = null;
+let chartModules  = null;
+let chartStatus   = null;
+
+const STATUS_COLORS = {
+  done:    '#22c55e',
+  running: '#f59e0b',
+  pending: '#3b82f6',
+  error:   '#ef4444',
+};
+
+const MODULE_COLORS = {
+  recon:    '#3b82f6',
+  scan:     '#f59e0b',
+  exploit:  '#ef4444',
+  web_scan: '#8b5cf6',
+};
+
+Chart.defaults.color       = '#94a3b8';
+Chart.defaults.borderColor = 'rgba(255,255,255,.06)';
+Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+
+async function refreshAll() {
+  const data = await apiFetch('/api/defensive/overview');
+  if (!data) return;
+
+  // ── HERO santé ─────────────────────────────────────
+  const hero = document.getElementById('siem-hero');
+  hero.className = 'siem-hero hero-' + data.alert_level.level;
+  document.getElementById('hero-title').textContent = data.alert_level.label;
+  const subTexts = {
+    ok:       'Tous les services opérationnels — aucune anomalie détectée.',
+    warning:  'Quelques anomalies mineures — surveillance recommandée.',
+    critical: 'Anomalies critiques détectées — intervention requise.',
+  };
+  const heroIcons = { ok: 'shield-check', warning: 'shield-alert', critical: 'shield-x' };
+  document.getElementById('hero-sub').textContent = subTexts[data.alert_level.level] || '';
+  document.getElementById('hero-pulse').innerHTML =
+    `<i data-lucide="${heroIcons[data.alert_level.level] || 'shield'}" class="icon-xl"></i>`;
+  document.getElementById('hero-services').textContent = `${data.services_up}/${data.services_total}`;
+  document.getElementById('hero-24h').textContent      = data.metrics.scans_24h;
+  document.getElementById('hero-refresh').textContent  = new Date().toLocaleTimeString('fr-FR');
+
+  // ── Métriques ──────────────────────────────────────
+  document.getElementById('m-total').textContent   = data.metrics.total_scans;
+  document.getElementById('m-done').textContent    = data.metrics.done_scans;
+  document.getElementById('m-running').textContent = data.metrics.running_scans;
+  document.getElementById('m-error').textContent   = data.metrics.error_scans;
+  document.getElementById('m-rate-mini').textContent = data.metrics.success_rate + '%';
+
+  // ── Topbar badge ──────────────────────────────────
+  const badge = document.getElementById('alert-badge');
+  badge.textContent = data.alert_level.label;
+  badge.className   = 'alert-badge alert-' + data.alert_level.level;
+  document.getElementById('last-refresh').textContent =
+    'MAJ ' + new Date().toLocaleTimeString();
+
+  renderTimeline(data.timeline);
+  renderModules(data.modules);
+  renderStatus(data.statuses);
+  renderServices(data.services, data.services_up, data.services_total);
+  renderActivity(data.activity);
+  renderTopTargets(data.top_targets);
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderTimeline(timeline) {
+  const labels = timeline.map(t => t.time);
+  const values = timeline.map(t => t.count);
+  const total  = values.reduce((a, b) => a + b, 0);
+  document.getElementById('timeline-total').textContent = `${total} jobs`;
+
+  const ctx = document.getElementById('chart-timeline');
+  if (chartTimeline) {
+    chartTimeline.data.labels = labels;
+    chartTimeline.data.datasets[0].data = values;
+    chartTimeline.update('none');
+    return;
+  }
+  chartTimeline = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Scans',
+        data: values,
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239,68,68,.12)',
+        fill: true,
+        tension: .35,
+        pointRadius: 3,
+        pointBackgroundColor: '#ef4444',
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, ticks: { precision: 0 } },
+      },
+    },
+  });
+}
+
+function renderModules(modules) {
+  const labels = modules.map(m => m.name);
+  const values = modules.map(m => m.count);
+  const colors = labels.map(n => MODULE_COLORS[n] || '#64748b');
+
+  const ctx = document.getElementById('chart-modules');
+  if (chartModules) {
+    chartModules.data.labels = labels;
+    chartModules.data.datasets[0].data = values;
+    chartModules.data.datasets[0].backgroundColor = colors;
+    chartModules.update('none');
+    return;
+  }
+  chartModules = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderRadius: 6,
+        borderSkipped: false,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0 } },
+        y: { grid: { display: false } },
+      },
+    },
+  });
+}
+
+function renderStatus(statuses) {
+  const labels = statuses.map(s => s.name);
+  const values = statuses.map(s => s.count);
+  const colors = labels.map(n => STATUS_COLORS[n] || '#64748b');
+
+  const ctx = document.getElementById('chart-status');
+  if (chartStatus) {
+    chartStatus.data.labels = labels;
+    chartStatus.data.datasets[0].data = values;
+    chartStatus.data.datasets[0].backgroundColor = colors;
+    chartStatus.update('none');
+    return;
+  }
+  chartStatus = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colors,
+        borderColor: '#0d1424',
+        borderWidth: 2,
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '65%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+      },
+    },
+  });
+}
+
+function renderServices(services, up, total) {
+  const grid = document.getElementById('services-grid');
+  document.getElementById('services-summary').textContent = `${up}/${total} services UP`;
+
+  const icons = {
+    elasticsearch: 'search',
+    kibana:        'bar-chart-3',
+    logstash:      'download',
+    minio:         'package',
+    redis:         'zap',
+    postgres:      'database',
+  };
+
+  grid.innerHTML = Object.entries(services).map(([name, s]) => {
+    const statusClass = s.up ? 'svc-up' : 'svc-down';
+    const lat         = s.latency_ms != null ? `${s.latency_ms}ms` : 'N/A';
+    return `
+      <div class="svc-card ${statusClass}">
+        <div class="svc-head">
+          <span class="svc-icon"><i data-lucide="${icons[name] || 'settings'}"></i></span>
+          <span class="svc-name">${name}</span>
+          <span class="svc-pulse"></span>
+        </div>
+        <div class="svc-stats">
+          <span class="svc-status">${s.up ? 'UP' : 'DOWN'}</span>
+          <span class="svc-lat">${lat}</span>
+        </div>
+      </div>`;
+  }).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderActivity(activity) {
+  const feed = document.getElementById('activity-feed');
+  if (!activity || activity.length === 0) {
+    feed.innerHTML = '<div class="table-empty">Aucune activité récente</div>';
+    return;
+  }
+  const moduleIcons = {
+    recon: 'radar', scan: 'shield-alert', exploit: 'zap', web_scan: 'globe',
+  };
+  feed.innerHTML = activity.map(a => `
+    <div class="activity-item act-${a.status}">
+      <div class="act-icon"><i data-lucide="${moduleIcons[a.module] || 'circle'}"></i></div>
+      <div class="act-body">
+        <div class="act-line1">
+          <span class="act-module">${a.module}</span>
+          <span class="act-target">${a.target}</span>
+        </div>
+        <div class="act-line2">
+          <span class="act-id">Job #${a.id}</span>
+          <span class="act-time">${formatDate(a.time)}</span>
+        </div>
+      </div>
+      <div class="act-status status--${a.status}">${a.status}</div>
+    </div>`).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderTopTargets(targets) {
+  const el = document.getElementById('top-targets');
+  if (!targets || targets.length === 0) {
+    el.innerHTML = '<div class="table-empty">Aucune cible scannée</div>';
+    return;
+  }
+  const max = Math.max(...targets.map(t => t.count));
+  el.innerHTML = targets.map((t, i) => `
+    <div class="target-row">
+      <div class="target-row-top">
+        <span class="target-rank">#${i + 1}</span>
+        <span class="target-name">${t.target}</span>
+        <span class="target-count">${t.count}</span>
+      </div>
+      <div class="target-bar-wrap">
+        <div class="target-bar" style="width:${(t.count / max * 100)}%"></div>
+      </div>
+    </div>`).join('');
+}
+
+// Initial load + auto-refresh
+refreshAll().then(() => { if (window.lucide) lucide.createIcons(); });
+setInterval(refreshAll, 5000);
+if (window.lucide) lucide.createIcons();
+</script>
+</body>
+</html>

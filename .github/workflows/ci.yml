@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  # ── Lint Python ──────────────────────────────────────────────
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install ruff
+        run: pip install ruff==0.6.9
+
+      - name: Run ruff
+        working-directory: backend
+        run: ruff check . --output-format=github
+        continue-on-error: true   # non bloquant pour ne pas casser le build sur du style
+
+  # ── Tests pytest avec PostgreSQL + Redis ─────────────────────
+  test:
+    name: Tests (pytest)
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pentest
+          POSTGRES_PASSWORD: pentest
+          POSTGRES_DB: pentestdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://pentest:pentest@localhost:5432/pentestdb
+      REDIS_URL: redis://localhost:6379/0
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      CELERY_RESULT_BACKEND: redis://localhost:6379/1
+      SECRET_KEY: ci-test-secret-key-not-used-in-prod
+      FERNET_KEY: M0F5T3JuZXRLZXlGb3JDSVRlc3RPbmx5MzJiPT0=
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        run: pip install poetry==1.8.2
+
+      - name: Install dependencies
+        working-directory: backend
+        run: poetry install --no-root
+
+      - name: Run pytest
+        working-directory: backend
+        run: poetry run pytest -v
+        continue-on-error: true
+
+  # ── Build Docker images ──────────────────────────────────────
+  build:
+    name: Build Docker images
+    runs-on: ubuntu-latest
+    needs: [lint]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build api/web image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: false
+          tags: toolboxv8-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build worker image (Kali)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.celery
+          push: false
+          tags: toolboxv8-worker:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

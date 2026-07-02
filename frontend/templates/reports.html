@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rapports – ToolboxV8</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i data-lucide="shield-check"></i></div>
+    <div><div class="brand-name">ToolboxV8</div><div class="brand-sub">v1.0.0</div></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Navigation</div>
+    <a href="/dashboard" class="nav-item"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span> Dashboard</a>
+    <a href="/modules" class="nav-item nav-not-reader"><span class="nav-icon"><i data-lucide="wrench"></i></span> Modules</a>
+    <a href="/reports" class="nav-item active"><span class="nav-icon"><i data-lucide="file-text"></i></span> Rapports</a>
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Défensif</div>
+    <a href="/siem" class="nav-item nav-admin-only" style="display:none"><span class="nav-icon"><i data-lucide="radar"></i></span> SIEM</a>
+
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Administration</div>
+    <a href="/admin/users" class="nav-item nav-admin-only" style="display:none">
+      <span class="nav-icon"><i data-lucide="users"></i></span> Utilisateurs
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div class="user-name" id="user-name">–</div><div class="user-role" id="user-role">–</div></div>
+    </div>
+    <button class="btn-logout" onclick="logout()" title="Déconnexion"><i data-lucide="log-out"></i></button>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-title">Rapports</h1>
+      <span class="breadcrumb">Historique des analyses</span>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot" id="api-status"></div>
+      <span class="topbar-time" id="clock">–</span>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- Générer un rapport -->
+    <div class="panel" style="margin-bottom:24px">
+      <div class="panel-header">
+        <h2 class="panel-title">Générer un rapport</h2>
+      </div>
+      <form class="inline-form" onsubmit="generateReport(event)">
+        <div class="form-group" style="flex:1">
+          <label>ID du job</label>
+          <input type="number" id="rpt-job-id" placeholder="ex: 1" min="1" required />
+        </div>
+        <div class="form-group" style="flex:2">
+          <label>Titre du rapport</label>
+          <input type="text" id="rpt-title" placeholder="ex: Audit réseau – Avril 2026" required />
+        </div>
+        <div class="form-group" style="align-self:flex-end">
+          <button type="submit" class="btn-launch" style="padding:12px 24px"><i data-lucide="file-plus"></i> Générer</button>
+        </div>
+      </form>
+      <div id="gen-msg" style="display:none;margin-top:12px" class="launch-result"></div>
+    </div>
+
+    <!-- Liste des rapports -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2 class="panel-title">Tous les rapports</h2>
+        <button class="panel-action" onclick="loadReports()"><i data-lucide="refresh-cw"></i> Actualiser</button>
+      </div>
+      <table class="table" id="reports-table">
+        <thead>
+          <tr><th>#</th><th>Titre</th><th>Format</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="reports-body">
+          <tr><td colspan="5" class="table-empty">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</main>
+
+<script src="/static/js/app.js"></script>
+<script>
+  requireAuth();
+  loadUserInfo();
+  startClock();
+  loadReports();
+  if (window.lucide) lucide.createIcons();
+
+  async function loadReports() {
+    const reports = await apiFetch('/api/reports/');
+    const tbody = document.getElementById('reports-body');
+    if (!reports || reports.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="table-empty">Aucun rapport</td></tr>';
+      return;
+    }
+    tbody.innerHTML = reports.map(r => `
+      <tr>
+        <td class="td-id">#${r.id}</td>
+        <td>${r.title}</td>
+        <td><span class="badge badge--${r.format}">${r.format.toUpperCase()}</span></td>
+        <td class="td-date">${formatDate(r.created_at)}</td>
+        <td style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn-sm" onclick="viewReport(${r.id})"><i data-lucide="eye"></i> Visualiser</button>
+          <button class="btn-dl-full" onclick="downloadReport(${r.id},'${r.format}')">
+            <i data-lucide="download"></i> Télécharger
+          </button>
+          <button class="btn-sm btn-danger" onclick="deleteReport(${r.id})"><i data-lucide="trash-2"></i> Supprimer</button>
+        </td>
+      </tr>`).join('');
+    if (window.lucide) lucide.createIcons();
+  }
+
+  async function viewReport(reportId) {
+    try {
+      const res = await fetch(`/api/reports/${reportId}/view`, {
+        credentials: 'same-origin'
+      });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const html = await res.text();
+      const blob = new Blob([html], { type: 'text/html' });
+      const url  = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (err) {
+      alert('Erreur visualisation : ' + err.message);
+    }
+  }
+
+  async function downloadReport(reportId, format) {
+    try {
+      const res = await fetch(`/api/reports/${reportId}/download`, {
+        credentials: 'same-origin'
+      });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `rapport_${reportId}.${format}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('Erreur téléchargement : ' + err.message);
+    }
+  }
+
+  async function deleteReport(reportId) {
+    if (!confirm(`Supprimer le rapport #${reportId} ? Cette action est irréversible.`)) return;
+    try {
+      await apiFetch(`/api/reports/${reportId}`, { method: 'DELETE' });
+      await loadReports();
+    } catch (err) {
+      alert('Erreur : ' + err.message);
+    }
+  }
+
+  async function generateReport(e) {
+    e.preventDefault();
+    const jobId  = parseInt(document.getElementById('rpt-job-id').value);
+    const title  = document.getElementById('rpt-title').value.trim();
+    const msgEl  = document.getElementById('gen-msg');
+
+    try {
+      await apiFetch('/api/reports/generate', {
+        method: 'POST',
+        body: JSON.stringify({ scan_job_id: jobId, title, format: 'pdf' }),
+      });
+      msgEl.innerHTML = '<span class="result-icon">✅</span> Rapport en cours de génération, actualisez dans quelques secondes.';
+      msgEl.style.display = 'flex';
+      setTimeout(loadReports, 3000);
+    } catch (err) {
+      msgEl.innerHTML = `<span>⚠</span> Erreur : ${err.message}`;
+      msgEl.style.background = 'rgba(239,68,68,.1)';
+      msgEl.style.display = 'flex';
+    }
+  }
+</script>
+</body>
+</html>

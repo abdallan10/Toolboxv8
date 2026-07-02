@@ -1,0 +1,29 @@
+# Caddyfile — reverse proxy HTTPS pour ToolboxV8
+#
+# Caddy gère automatiquement un certificat TLS auto-signé via sa CA interne.
+# Au premier démarrage, ajouter l'AC racine de Caddy au navigateur pour
+# éviter le warning (ou simplement accepter l'exception au cas par cas).
+#
+# Le service "web" tourne en HTTP sur le port 3000 dans le réseau Docker.
+# Caddy se place devant : 443 (HTTPS) → web:3000, redirection 80 → 443.
+
+{
+    # Désactive le challenge HTTP automatique (pas de Let's Encrypt en local)
+    auto_https disable_redirects
+}
+
+# HTTPS sur localhost:443 avec cert auto-signé par la CA interne de Caddy
+# (le nom d'hôte est nécessaire pour que Caddy génère le bon cert serveur)
+localhost {
+    tls internal
+    reverse_proxy web:3000 {
+        header_up X-Forwarded-Proto https
+        header_up X-Real-IP {remote_host}
+    }
+    encode gzip
+}
+
+# Redirige tout le trafic HTTP (80) vers HTTPS (443)
+http://localhost {
+    redir https://{host}{uri} permanent
+}

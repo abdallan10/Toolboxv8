@@ -1,0 +1,48 @@
+# ============================================================
+# Règles Snort locales – PentestBox
+# ============================================================
+
+# Détection port scan (Nmap SYN)
+alert tcp $EXTERNAL_NET any -> $HOME_NET any \
+  (msg:"SCAN Nmap SYN Stealth"; flags:S; threshold: type both, track by_src, count 20, seconds 3; \
+   sid:9000001; rev:1; classtype:network-scan;)
+
+# Détection bruteforce SSH
+alert tcp $EXTERNAL_NET any -> $HOME_NET 22 \
+  (msg:"BRUTEFORCE SSH tentative"; flow:to_server,established; threshold: type both, track by_src, count 5, seconds 60; \
+   sid:9000002; rev:1; classtype:attempted-admin;)
+
+# Détection bruteforce HTTP Basic Auth
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"BRUTEFORCE HTTP Auth"; content:"Authorization: Basic"; threshold: type both, track by_src, count 10, seconds 30; \
+   sid:9000003; rev:1; classtype:attempted-user;)
+
+# Détection SQLi basique
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"WEB-ATTACK SQL Injection"; content:"UNION SELECT"; nocase; \
+   sid:9000004; rev:1; classtype:web-application-attack;)
+
+# Détection XSS
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"WEB-ATTACK XSS Attempt"; content:"<script>"; nocase; \
+   sid:9000005; rev:1; classtype:web-application-attack;)
+
+# Détection accès répertoires sensibles
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"WEB-ATTACK Directory Traversal"; content:"../"; \
+   sid:9000006; rev:1; classtype:web-application-attack;)
+
+# Détection scan Nikto (User-Agent caractéristique)
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"SCAN Nikto Web Scanner"; content:"User-Agent|3a| Mozilla/5.00 (Nikto"; nocase; \
+   sid:9000007; rev:1; classtype:web-application-activity;)
+
+# Détection scan SQLmap (User-Agent par défaut)
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"SCAN sqlmap"; content:"User-Agent|3a| sqlmap"; nocase; \
+   sid:9000008; rev:1; classtype:web-application-attack;)
+
+# Détection injection Log4Shell (CVE-2021-44228)
+alert tcp $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS \
+  (msg:"WEB-ATTACK Log4Shell JNDI injection"; content:"|24 7B|jndi|3a|"; nocase; \
+   sid:9000009; rev:1; classtype:web-application-attack;)
